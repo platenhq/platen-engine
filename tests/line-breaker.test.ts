@@ -87,7 +87,11 @@ describe('LineBreaker', () => {
   it('slices oversized continuous unbroken tokens into character chunks', () => {
     const block: ParagraphBlock = {
       id: 'oversized_token',
-      runs: [{ text: 'https://very-long-url-with-no-spaces-that-exceeds-page-width.com/path/to/resource' }],
+      runs: [
+        {
+          text: 'https://very-long-url-with-no-spaces-that-exceeds-page-width.com/path/to/resource',
+        },
+      ],
       defaultStyle,
     };
 
