@@ -1,0 +1,15 @@
+{
+  "name": "@trayshmhirk/paged-engine",
+  "version": "0.1.0",
+  "description": "Framework-agnostic hybrid micro-canvas pagination engine for web editors",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "Trayshmhirk",
+  "license": "MIT",
+  "type": "commonjs"
+}

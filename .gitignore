@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Test coverage & caches
+coverage/
+*.tsbuildinfo
+.vitest/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS & IDE metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
