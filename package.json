@@ -3,13 +3,44 @@
   "version": "0.1.0",
   "description": "Framework-agnostic hybrid micro-canvas pagination engine for web editors",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
-  "keywords": [],
+  "keywords": [
+    "pagination",
+    "micro-canvas",
+    "word-processor",
+    "rich-text",
+    "lexical",
+    "prosemirror",
+    "typesetting"
+  ],
   "author": "Trayshmhirk",
   "license": "MIT",
-  "type": "commonjs"
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "tsup": "^8.5.1",
+    "typescript": "~5.7.3",
+    "vitest": "^4.1.11"
+  }
 }
