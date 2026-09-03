@@ -230,16 +230,16 @@ Instead of typing onto a Canvas directly, the engine renders an **invisible, flo
   tabIndex={0}
   aria-hidden="true"
   style={{
-    position: "absolute",
+    position: 'absolute',
     left: `${caretX}px`,
     top: `${caretY}px`,
-    width: "2px",
+    width: '2px',
     height: `${lineHeight}px`,
     opacity: 0,
     zIndex: 100,
-    pointerEvents: "auto",
-    outline: "none",
-    overflow: "hidden",
+    pointerEvents: 'auto',
+    outline: 'none',
+    overflow: 'hidden',
   }}
 />
 ```
@@ -276,7 +276,7 @@ All font measurement and line-breaking calculations are performed **off-screen**
 
      constructor() {
        this.canvas = new OffscreenCanvas(1000, 100);
-       this.ctx = this.canvas.getContext("2d")!;
+       this.ctx = this.canvas.getContext('2d')!;
      }
 
      public measureText(text: string, font: string): number {
@@ -362,7 +362,7 @@ function renderTrackCanvas(canvas: HTMLCanvasElement, track: TrackItem, dpr: num
   canvas.style.width = `${track.width}px`;
   canvas.style.height = `${track.height}px`;
 
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext('2d')!;
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, track.width, track.height);
 
@@ -531,8 +531,8 @@ Tables are historically the hardest part of document pagination:
 ### Public API Example (React & Lexical Integration)
 
 ```tsx
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { PagedCanvasPlugin, PagedDesk, PagedSheet } from "@trayshmhirk/paged-engine";
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { PagedCanvasPlugin, PagedDesk, PagedSheet } from '@trayshmhirk/paged-engine';
 
 export function WordProcessor() {
   return (

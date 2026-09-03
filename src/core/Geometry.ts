@@ -34,7 +34,9 @@ export const DEFAULT_PAGE_MARGINS: PageMargins = {
 /**
  * Resolves preset name or custom page dimension object.
  */
-export function resolvePageDimensions(size: PageSizePreset | PageDimensions = 'letter'): PageDimensions {
+export function resolvePageDimensions(
+  size: PageSizePreset | PageDimensions = 'letter'
+): PageDimensions {
   if (typeof size === 'string') {
     const preset = PAGE_SIZE_PRESETS[size.toLowerCase() as PageSizePreset];
     if (!preset) {
