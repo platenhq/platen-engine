@@ -34,3 +34,9 @@ export * from './proxy/ClipboardProxy';
 // React Sheet & Desk Components
 export * from './components/PagedSheet';
 export * from './components/PagedDesk';
+
+// Framework Adapters & Reactive Bridge
+export * from './adapters/Types';
+export * from './adapters/lexical/LexicalAdapter';
+export * from './adapters/prosemirror/ProseMirrorAdapter';
+export * from './adapters/PagedEngineBridge';

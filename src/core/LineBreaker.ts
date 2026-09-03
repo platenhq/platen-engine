@@ -27,7 +27,11 @@ export class LineBreaker {
    * Slices a paragraph block into an array of wrapped TextLines.
    */
   public breakParagraph(block: ParagraphBlock, maxWidth: number): TextLine[] {
-    const defaultStyle = block.defaultStyle;
+    const defaultStyle = block.defaultStyle || {
+      fontFamily: 'Arial',
+      fontSize: 16,
+      lineHeight: 24,
+    };
 
     // Handle empty paragraph (e.g. empty line created by pressing Enter)
     if (!block.runs || block.runs.length === 0 || block.runs.every((r) => r.text === '')) {

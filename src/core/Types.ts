@@ -25,6 +25,9 @@ export interface TextStyle {
   fontStyle?: 'normal' | 'italic' | 'oblique';
   color?: string;
   letterSpacing?: number;
+  textDecoration?: string;
+  underline?: boolean;
+  strikethrough?: boolean;
 }
 
 export interface TextRun {
@@ -45,7 +48,7 @@ export interface TextLine {
 export interface ParagraphBlock {
   id: string; // paraid matching semantic AST node
   runs: TextRun[];
-  defaultStyle: TextStyle;
+  defaultStyle?: TextStyle;
   align?: 'left' | 'center' | 'right' | 'justify';
   spaceBefore?: number;
   spaceAfter?: number;
