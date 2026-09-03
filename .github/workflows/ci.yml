@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# Security: Lock down default GITHUB_TOKEN permissions to read-only
+permissions:
+  contents: read
+
+# Resource optimization: Cancel in-progress redundant runs on same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    name: Security & Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Dependency Vulnerability Audit
+        run: npm run security:check
+
+      - name: Secret Leak Detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  package-health:
+    name: Package Exports & Types Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build distribution package
+        run: npm run build
+
+      - name: Validate npm package export compliance
+        run: npx publint
+
+      - name: Validate TypeScript declaration export mappings
+        run: npx @arethetypeswrong/cli --pack .
+
+  verify:
+    name: Lint, Test & Build (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify code formatting
+        run: npm run format:check
+
+      - name: Verify TypeScript compilation
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Verify bundle build
+        run: npm run build
