@@ -1,5 +1,5 @@
 {
-  "name": "@trayshmhirk/paged-engine",
+  "name": "@platen/engine",
   "version": "0.1.0",
   "description": "Framework-agnostic hybrid micro-canvas pagination engine for web editors",
   "main": "dist/index.js",
@@ -40,8 +40,19 @@
     "prosemirror",
     "typesetting"
   ],
-  "author": "Trayshmhirk",
+  "author": "Platen Authors (Trayshmhirk)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/platenhq/platen-engine.git"
+  },
+  "homepage": "https://github.com/platenhq/platen-engine#readme",
+  "bugs": {
+    "url": "https://github.com/platenhq/platen-engine/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "commonjs",
   "sideEffects": false,
   "engines": {
