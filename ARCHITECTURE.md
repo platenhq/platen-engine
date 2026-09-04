@@ -1,7 +1,7 @@
 # The Web Word Processor Pagination Whitepaper & Engineering Specification
 
-> **Document Version**: 2.0 (Master Unified Blueprint)  
-> **Target Library**: `@trayshmhirk/paged-engine` (Framework-Agnostic Core + React/Lexical/ProseMirror Adapters)  
+> **Document Version**: 2.1 (Master Unified Blueprint)  
+> **Target Library**: `@platen/engine` (Framework-Agnostic Core + React/Lexical/ProseMirror Adapters)  
 > **Primary Use Case**: Enterprise-grade multi-page document pagination for web word processors (including `docs-editor`).
 
 ---
@@ -230,16 +230,16 @@ Instead of typing onto a Canvas directly, the engine renders an **invisible, flo
   tabIndex={0}
   aria-hidden="true"
   style={{
-    position: "absolute",
+    position: 'absolute',
     left: `${caretX}px`,
     top: `${caretY}px`,
-    width: "2px",
+    width: '2px',
     height: `${lineHeight}px`,
     opacity: 0,
     zIndex: 100,
-    pointerEvents: "auto",
-    outline: "none",
-    overflow: "hidden",
+    pointerEvents: 'auto',
+    outline: 'none',
+    overflow: 'hidden',
   }}
 />
 ```
@@ -276,7 +276,7 @@ All font measurement and line-breaking calculations are performed **off-screen**
 
      constructor() {
        this.canvas = new OffscreenCanvas(1000, 100);
-       this.ctx = this.canvas.getContext("2d")!;
+       this.ctx = this.canvas.getContext('2d')!;
      }
 
      public measureText(text: string, font: string): number {
@@ -362,7 +362,7 @@ function renderTrackCanvas(canvas: HTMLCanvasElement, track: TrackItem, dpr: num
   canvas.style.width = `${track.width}px`;
   canvas.style.height = `${track.height}px`;
 
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext('2d')!;
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, track.width, track.height);
 
@@ -490,10 +490,10 @@ Tables are historically the hardest part of document pagination:
 
 ---
 
-## 9. Architecture of the Standalone npm Package (`@trayshmhirk/paged-engine`)
+## 9. Architecture of the Standalone npm Package (`@platen/engine`)
 
 ```txt
-@trayshmhirk/paged-engine/
+@platen/engine/
 ├── src/
 │   ├── core/
 │   │   ├── Geometry.ts              # Page sizes (Letter, A4, Legal) & margin presets
@@ -531,8 +531,8 @@ Tables are historically the hardest part of document pagination:
 ### Public API Example (React & Lexical Integration)
 
 ```tsx
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { PagedCanvasPlugin, PagedDesk, PagedSheet } from "@trayshmhirk/paged-engine";
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { PagedCanvasPlugin, PagedDesk, PagedSheet } from '@platen/engine';
 
 export function WordProcessor() {
   return (
@@ -600,4 +600,74 @@ When the standalone package is built, it must pass the following test suite befo
 
 - Create `PagedCanvasPlugin` wrapping Lexical's `useLexicalComposerContext`.
 - Verify zero mutation loops when connected to Liveblocks / Yjs.
-- Bundle as an ESM/CJS package via `tsup`, write comprehensive documentation, and publish to npm under `@trayshmhirk/paged-engine`.
+- Bundle as an ESM/CJS package via `tsup`, write comprehensive documentation, and publish to npm under `@platen/engine`.
+
+---
+
+## 12. Advanced Roadmap & Future Engineering Horizons
+
+With Sprints 1 through 4 complete (Headless Layout Slicer, Micro-Canvas Track Renderer, Synthetic Caret/Selection Engine, and Universal Framework Adapters), Platen Engine enters Phase 2 of its evolution: tackling the most demanding typesetting capabilities in commercial desktop publishing.
+
+```txt
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      PLATEN ENGINE PHASE 2 ROADMAP                          │
+├───────────────────────────────┬─────────────────────────────────────────────┤
+│ 12.1 Multi-Page Table Slicing │ Atomic row splitting & repeated header rows │
+│ 12.2 WYSIWYG Page Adornments  │ Dynamic 3-zone headers/footers & tokens     │
+│ 12.3 Footnote Geometry Solver │ Dynamic bottom margin space redistribution  │
+│ 12.4 Multi-Column Typesetting │ Multi-column text flow & baseline balancing │
+│ 12.5 Headless PDF Exporter    │ Direct vector PDF generation (<100ms)       │
+└───────────────────────────────┴─────────────────────────────────────────────┘
+```
+
+### 12.1 Multi-Page Table Row Slicing & Boundary Deferral
+
+Tables represent the single most complex element in paginated document engineering. Phase 5 will implement the **Atomic Row Slicing Protocol**:
+
+1. **Cell Measurement Harness**: Each table row (`TableRowBlock`) contains $N$ cells with independent paragraph blocks. The height of a row is calculated offscreen as:
+   $$H_{\text{row}} = \max_{i \in [1, N]} (H_{\text{cell}_i}) + 2 \times P_{\text{padding}} + B_{\text{border}}$$
+2. **Boundary Cushion Detection**: When iterating through table rows during page layout slicing:
+   - If `currentY + H_row <= pageUsableHeight`, the row is rendered on Page $K$.
+   - If `currentY + H_row > pageUsableHeight`, the entire row is cleanly deferred to start at $Y = \text{topMargin}$ on Page $K+1$.
+3. **Repeated Header Rows**: When a table splits across page boundaries, if `repeatHeaderRow` is enabled in table settings, the layout slicer automatically re-injects the table header track item at $Y = \text{topMargin}$ on every subsequent page until the table terminates.
+4. **Giant Cell Sub-Slicing**: For rare edge cases where a single table cell contains more text than fits on an entire physical page ($H_{\text{row}} > H_{\text{usable}}$), the engine applies the paragraph slicer recursively inside individual cell columns, generating split table row tracks.
+
+### 12.2 Interactive Header & Footer WYSIWYG Adornments
+
+Currently, `PagedSheet` exposes `renderHeader` and `renderFooter` slots. Phase 6 graduates this into a full interactive adornment engine:
+
+1. **Three-Zone Header/Footer Grids**: Left-aligned, center-aligned, and right-aligned margin slots with independent vertical baselines.
+2. **Dynamic Pagination Tokens**: Automatic substitution of dynamic tokens evaluated at render time:
+   - `{{pageNumber}}`: Current physical sheet index.
+   - `{{totalPages}}`: Total document sheet count.
+   - `{{documentTitle}}`: Document metadata string.
+   - `{{date}}`: Formatted print date.
+3. **Different First Page & Odd/Even Sheets**:
+   - `differentFirstPage`: Suppresses headers and footers on Cover/Title pages.
+   - `differentOddEvenPages`: Enables bookmaking layouts with alternate header alignments (e.g. author name on even pages, chapter title on odd pages).
+
+### 12.3 Footnotes & Sidenotes Dynamic Geometry Solver
+
+In standard word processors, inserting a footnote at the bottom of a page dynamically shrinks the usable body height of that specific page:
+
+1. **Dynamic Usable Height Partitioning**:
+   $$H_{\text{usable}} = H_{\text{sheet}} - M_{\text{top}} - M_{\text{bottom}} - H_{\text{footnotes}} - G_{\text{separator}}$$
+2. **Iterative Slicing Loop**: When a footnote reference is encountered in a body paragraph line:
+   - The footnote text is measured offscreen.
+   - The available body height for that page decreases by the footnote height.
+   - If the shrinkage pushes the paragraph containing the reference to Page $K+1$, the footnote reference is automatically relocated to Page $K+1$, restoring Page $K$'s height.
+
+### 12.4 Multi-Column Section Typesetting
+
+1. **Independent Column Tracks**: Sections configured with $N$ columns partition the usable page width into equal column boxes separated by gutters:
+   $$W_{\text{col}} = \frac{W_{\text{usable}} - (N - 1) \times G_{\text{gutter}}}{N}$$
+2. **Column Balancing**: The final section of a multi-column document balances paragraph lines equally across columns so all columns terminate at approximately the same vertical baseline.
+
+### 12.5 Vector Print & Headless PDF Streaming Exporter
+
+Modern web-to-PDF pipelines rely on headless Chromium (Puppeteer/Playwright) to take screenshots or print pages, consuming hundreds of megabytes of server RAM.
+
+Platen's architecture unlocks a direct, headless PDF generator:
+
+1. Since Platen already computes the exact $(X, Y)$ coordinates, fonts, and bounding boxes of every glyph in memory, it can emit **raw PDF vector operator streams** (e.g., via `pdf-lib` or direct binary PDF construction).
+2. Generates ultra-crisp, searchable vector PDFs in <100ms with zero browser overhead, running cleanly in Node.js, Cloudflare Workers, and AWS Lambda.

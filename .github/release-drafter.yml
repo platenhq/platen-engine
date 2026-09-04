@@ -1,0 +1,63 @@
+name-template: '$RESOLVED_VERSION'
+tag-template: '$RESOLVED_VERSION'
+
+categories:
+  - title: '🚀 Features & Enhancements'
+    labels:
+      - 'feature'
+      - 'enhancement'
+      - 'feat'
+  - title: '🔌 Framework Adapters'
+    labels:
+      - 'adapters'
+      - 'adapter'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bug'
+      - 'bugfix'
+  - title: '🧰 Maintenance & Tooling'
+    labels:
+      - 'chore'
+      - 'ci'
+      - 'docs'
+      - 'documentation'
+
+change-template: '- $TITLE (@$AUTHOR in #$NUMBER)'
+
+change-title-escapes: '\<*_&'
+
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+  minor:
+    labels:
+      - 'minor'
+      - 'enhancement'
+      - 'feature'
+      - 'feat'
+  patch:
+    labels:
+      - 'patch'
+      - 'fix'
+      - 'bug'
+      - 'chore'
+      - 'docs'
+      - 'ci'
+  default: patch
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  ---
+  ### 📦 Installation
+
+  ```bash
+  npm install @platen/engine
+  ```
+
+  **Full Changelog**: https://github.com/platenhq/platen-engine/compare/$PREVIOUS_TAG...$RESOLVED_VERSION

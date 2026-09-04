@@ -1,15 +1,86 @@
 {
-  "name": "@trayshmhirk/paged-engine",
+  "name": "@platen/engine",
   "version": "0.1.0",
   "description": "Framework-agnostic hybrid micro-canvas pagination engine for web editors",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "security:check": "npm audit --audit-level=high",
+    "security:fix": "npm audit fix",
+    "check:exports": "publint && attw --pack ."
   },
-  "keywords": [],
-  "author": "Trayshmhirk",
+  "keywords": [
+    "pagination",
+    "micro-canvas",
+    "word-processor",
+    "rich-text",
+    "lexical",
+    "prosemirror",
+    "typesetting"
+  ],
+  "author": "Platen Authors (Trayshmhirk)",
   "license": "MIT",
-  "type": "commonjs"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/platenhq/platen-engine.git"
+  },
+  "homepage": "https://github.com/platenhq/platen-engine#readme",
+  "bugs": {
+    "url": "https://github.com/platenhq/platen-engine/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "commonjs",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@types/node": "^26.4.1",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "prettier": "^3.4.2",
+    "publint": "^0.3.24",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.5.1",
+    "typescript": "~5.7.3",
+    "vitest": "^4.1.11"
+  }
 }
