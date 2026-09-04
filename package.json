@@ -1,6 +1,6 @@
 {
   "name": "@platen/engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Framework-agnostic hybrid micro-canvas pagination engine for web editors",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
