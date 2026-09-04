@@ -95,8 +95,4 @@ template: |
   - 🐛 **Issue Tracker**: [Report an Issue or Request Feature](https://github.com/platenhq/platen-engine/issues)
   - 💬 **Discussions**: [Community Discussions](https://github.com/platenhq/platen-engine/discussions)
 
-  ---
   **Full Changelog**: https://github.com/platenhq/platen-engine/compare/$PREVIOUS_TAG...$RESOLVED_VERSION
-
-  ### 👥 Contributors
-  $CONTRIBUTORS
