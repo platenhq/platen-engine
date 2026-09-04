@@ -2,30 +2,57 @@ name-template: '$RESOLVED_VERSION'
 tag-template: '$RESOLVED_VERSION'
 
 categories:
+  - title: '💥 Breaking Changes'
+    labels:
+      - 'breaking'
+      - 'major'
   - title: '🚀 Features & Enhancements'
     labels:
+      - 'feat'
       - 'feature'
       - 'enhancement'
-      - 'feat'
-  - title: '🔌 Framework Adapters'
-    labels:
-      - 'adapters'
-      - 'adapter'
   - title: '🐛 Bug Fixes'
     labels:
       - 'fix'
       - 'bug'
       - 'bugfix'
-  - title: '🧰 Maintenance & Tooling'
+  - title: '🧰 Maintenance & CI'
     labels:
       - 'chore'
       - 'ci'
       - 'docs'
       - 'documentation'
+      - 'test'
 
 change-template: '- $TITLE (@$AUTHOR in #$NUMBER)'
 
 change-title-escapes: '\<*_&'
+
+autolabeler:
+  - label: 'breaking'
+    title:
+      - '/^break/i'
+      - '/breaking/i'
+  - label: 'feat'
+    title:
+      - '/^feat(\(.*\))?:/i'
+      - '/^feature(\(.*\))?:/i'
+  - label: 'fix'
+    title:
+      - '/^fix(\(.*\))?:/i'
+      - '/^bug(\(.*\))?:/i'
+  - label: 'ci'
+    title:
+      - '/^ci(\(.*\))?:/i'
+  - label: 'docs'
+    title:
+      - '/^docs(\(.*\))?:/i'
+  - label: 'chore'
+    title:
+      - '/^chore(\(.*\))?:/i'
+  - label: 'test'
+    title:
+      - '/^test(\(.*\))?:/i'
 
 version-resolver:
   major:
@@ -60,4 +87,16 @@ template: |
   npm install @platen/engine
   ```
 
+  ---
+  ### 🔗 Helpful Links & Documentation
+
+  - 📖 **Documentation**: [Platen Architecture & Guide](https://github.com/platenhq/platen-engine#readme)
+  - 📦 **NPM Registry**: [@platen/engine](https://www.npmjs.com/package/@platen/engine)
+  - 🐛 **Issue Tracker**: [Report an Issue or Request Feature](https://github.com/platenhq/platen-engine/issues)
+  - 💬 **Discussions**: [Community Discussions](https://github.com/platenhq/platen-engine/discussions)
+
+  ---
   **Full Changelog**: https://github.com/platenhq/platen-engine/compare/$PREVIOUS_TAG...$RESOLVED_VERSION
+
+  ### 👥 Contributors
+  $CONTRIBUTORS
