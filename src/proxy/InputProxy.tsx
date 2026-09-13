@@ -132,7 +132,9 @@ export const InputProxy = forwardRef<InputProxyHandles, InputProxyProps>(
         suppressContentEditableWarning
         spellCheck
         tabIndex={0}
-        aria-hidden="true"
+        role="textbox"
+        aria-label="Document editor page input"
+        aria-multiline="true"
         onBeforeInput={handleBeforeInput}
         onKeyDown={handleKeyDown}
         onCompositionStart={handleCompositionStart}

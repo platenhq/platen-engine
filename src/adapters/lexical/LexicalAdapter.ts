@@ -16,6 +16,8 @@ export interface LexicalAdapterOptions {
   defaultFontFamily?: string;
   defaultFontSize?: number;
   defaultLineHeight?: number;
+  /** Optional custom getter for $getRoot if lexical cannot be imported globally */
+  getRootFn?: () => unknown;
 }
 
 /**
@@ -26,11 +28,13 @@ export class LexicalAdapter implements EditorAdapter {
   private defaultFontFamily: string;
   private defaultFontSize: number;
   private defaultLineHeight: number;
+  private getRootFn?: () => unknown;
 
   constructor(options: LexicalAdapterOptions = {}) {
     this.defaultFontFamily = options.defaultFontFamily || 'Arial';
     this.defaultFontSize = options.defaultFontSize || 16;
     this.defaultLineHeight = options.defaultLineHeight || 24;
+    this.getRootFn = options.getRootFn;
   }
 
   /**
@@ -39,35 +43,44 @@ export class LexicalAdapter implements EditorAdapter {
   public extractParagraphBlocks(source: unknown): ParagraphBlock[] {
     if (!source || typeof source !== 'object') return [];
 
-    // Case 1: Lexical Editor instance with getEditorState()
+    // Case 1: Serialized Lexical AST object ({ root: { children: [...] } })
+    const serialized = source as { root?: { children?: unknown[] } };
+    if (serialized.root && Array.isArray(serialized.root.children)) {
+      return this.flattenAndExtractNodes(serialized.root.children);
+    }
+
+    // Case 2: Direct array of serialized nodes
+    if (Array.isArray(source)) {
+      return this.flattenAndExtractNodes(source);
+    }
+
+    // Case 3: Lexical Editor instance with getEditorState()
     if (
       'getEditorState' in source &&
       typeof (source as { getEditorState: unknown }).getEditorState === 'function'
     ) {
-      const editorState = (
-        source as {
-          getEditorState: () => { read: (fn: () => ParagraphBlock[]) => ParagraphBlock[] };
+      const editorState = (source as any).getEditorState();
+      // If editorState has toJSON(), prioritize serialized AST extraction
+      if (editorState && typeof editorState.toJSON === 'function') {
+        const json = editorState.toJSON();
+        if (json?.root && Array.isArray(json.root.children)) {
+          return this.flattenAndExtractNodes(json.root.children);
         }
-      ).getEditorState();
-      return editorState.read(() => this.extractFromLexicalContext(source));
+      }
+      if (editorState && typeof editorState.read === 'function') {
+        return editorState.read(() => this.extractFromLexicalContext(source));
+      }
     }
 
-    // Case 2: Lexical EditorState with read()
-    if ('read' in source && typeof (source as { read: unknown }).read === 'function') {
-      return (source as { read: (fn: () => ParagraphBlock[]) => ParagraphBlock[] }).read(() =>
-        this.extractFromLexicalContext(source)
-      );
+    // Case 4: Lexical EditorState with toJSON() or read()
+    if ('toJSON' in source && typeof (source as any).toJSON === 'function') {
+      const json = (source as any).toJSON();
+      if (json?.root && Array.isArray(json.root.children)) {
+        return this.flattenAndExtractNodes(json.root.children);
+      }
     }
-
-    // Case 3: Serialized Lexical AST object ({ root: { children: [...] } })
-    const serialized = source as { root?: { children?: unknown[] } };
-    if (serialized.root && Array.isArray(serialized.root.children)) {
-      return this.extractFromSerializedNodes(serialized.root.children);
-    }
-
-    // Case 4: Direct array of nodes
-    if (Array.isArray(source)) {
-      return this.extractFromSerializedNodes(source);
+    if ('read' in source && typeof (source as any).read === 'function') {
+      return (source as any).read(() => this.extractFromLexicalContext(source));
     }
 
     return [];
@@ -95,131 +108,248 @@ export class LexicalAdapter implements EditorAdapter {
   }
 
   /**
-   * Traverses Lexical active context via $getRoot or node traversal.
+   * Traverses Lexical active context via provided getRootFn, globalThis.$getRoot, or editor node map.
    */
   private extractFromLexicalContext(context: unknown): ParagraphBlock[] {
-    const root =
-      typeof (globalThis as unknown as { $getRoot?: () => { getChildren: () => unknown[] } })
-        .$getRoot === 'function'
-        ? (globalThis as unknown as { $getRoot: () => { getChildren: () => unknown[] } }).$getRoot()
-        : (context as { getRoot?: () => { getChildren: () => unknown[] } }).getRoot?.();
+    let root: any = null;
+
+    if (this.getRootFn) {
+      root = this.getRootFn();
+    } else if (typeof (globalThis as any).$getRoot === 'function') {
+      root = (globalThis as any).$getRoot();
+    } else if (context && typeof (context as any)._nodeMap?.get === 'function') {
+      root = (context as any)._nodeMap.get('root');
+    } else if (context && typeof (context as any).getRoot === 'function') {
+      root = (context as any).getRoot();
+    }
 
     if (root && typeof root.getChildren === 'function') {
-      return this.extractFromLiveNodes(root.getChildren());
+      return this.flattenAndExtractLiveNodes(root.getChildren());
     }
 
     return [];
   }
 
   /**
-   * Maps live Lexical Node instances.
+   * Recursively extracts blocks from serialized Lexical JSON nodes, flattening
+   * nested structures (lists, tables, callouts) into printable paragraph blocks.
    */
-  private extractFromLiveNodes(nodes: unknown[]): ParagraphBlock[] {
+  private flattenAndExtractNodes(nodes: unknown[]): ParagraphBlock[] {
     const blocks: ParagraphBlock[] = [];
 
-    for (const node of nodes) {
-      if (!node || typeof node !== 'object') continue;
+    const processNode = (node: any, prefix = '') => {
+      if (!node || typeof node !== 'object') return;
 
-      const duckNode = node as {
-        getKey?: () => string;
-        getType?: () => string;
-        getTag?: () => string;
-        getChildren?: () => unknown[];
-        getTextContent?: () => string;
+      const type = node.type || 'paragraph';
+      const tag = node.tag;
+      const id = node.key || `block_${blocks.length}`;
+
+      // Handle Lists: traverse each ListItemNode
+      if (type === 'list') {
+        const listTag = tag || node.listType || 'ul';
+        const children = Array.isArray(node.children) ? node.children : [];
+        children.forEach((itemNode: any, idx: number) => {
+          const isOrdered = listTag === 'ol' || listTag === 'number';
+          const itemPrefix = isOrdered ? `${idx + 1}. ` : '• ';
+          processNode(itemNode, itemPrefix);
+        });
+        return;
+      }
+
+      // Handle Tables: traverse each row and cell
+      if (type === 'table') {
+        const rows = Array.isArray(node.children) ? node.children : [];
+        for (const row of rows) {
+          const cells = Array.isArray(row?.children) ? row.children : [];
+          for (const cell of cells) {
+            const cellChildren = Array.isArray(cell?.children) ? cell.children : [];
+            const hasBlockChildren = cellChildren.some(
+              (c: any) => c && (c.type === 'paragraph' || c.type === 'heading' || c.type === 'list')
+            );
+            if (hasBlockChildren) {
+              for (const cellChild of cellChildren) {
+                processNode(cellChild);
+              }
+            } else {
+              processNode(cell);
+            }
+          }
+        }
+        return;
+      }
+
+      // Collect all text runs recursively
+      const runs: TextRun[] = [];
+
+      if (prefix) {
+        runs.push({
+          text: prefix,
+          style: this.computeDefaultStyle(type, tag),
+        });
+      }
+
+      const collectRuns = (childNode: any) => {
+        if (!childNode || typeof childNode !== 'object') return;
+
+        if (typeof childNode.text === 'string' && childNode.text.length > 0) {
+          const style = this.buildTextStyleFromFormat(childNode.format || 0, childNode.style || '');
+          runs.push({
+            text: childNode.text,
+            style,
+          });
+        } else if (Array.isArray(childNode.children)) {
+          if (childNode.type === 'list') {
+            processNode(childNode);
+          } else {
+            for (const nested of childNode.children) {
+              collectRuns(nested);
+            }
+          }
+        }
       };
 
-      const id = duckNode.getKey ? duckNode.getKey() : `block_${blocks.length}`;
-      const type = duckNode.getType ? duckNode.getType() : 'paragraph';
-      const tag = duckNode.getTag ? duckNode.getTag() : undefined;
+      if (Array.isArray(node.children)) {
+        for (const child of node.children) {
+          collectRuns(child);
+        }
+      }
 
-      const children = duckNode.getChildren ? duckNode.getChildren() : [];
-      const runs = this.extractRunsFromLiveChildren(children);
+      // Push block if runs exist or if it represents an empty paragraph/heading/listitem line
+      if (
+        runs.length > 0 ||
+        type === 'paragraph' ||
+        type === 'heading' ||
+        type === 'listitem' ||
+        type === 'quote'
+      ) {
+        blocks.push({
+          id,
+          runs:
+            runs.length > 0 ? runs : [{ text: ' ', style: this.computeDefaultStyle(type, tag) }],
+          defaultStyle: this.computeDefaultStyle(type, tag),
+        });
+      }
+    };
 
-      const defaultStyle = this.computeDefaultStyle(type, tag);
-
-      blocks.push({
-        id,
-        runs,
-        defaultStyle,
-      });
+    for (const node of nodes) {
+      processNode(node);
     }
 
     return blocks;
   }
 
-  private extractRunsFromLiveChildren(children: unknown[]): TextRun[] {
-    const runs: TextRun[] = [];
-
-    for (const child of children) {
-      if (!child || typeof child !== 'object') continue;
-
-      const textNode = child as {
-        getTextContent?: () => string;
-        getFormat?: () => number;
-        getStyle?: () => string;
-      };
-
-      const text = textNode.getTextContent ? textNode.getTextContent() : '';
-      if (!text) continue;
-
-      const format = textNode.getFormat ? textNode.getFormat() : 0;
-      const styleString = textNode.getStyle ? textNode.getStyle() : '';
-
-      const style = this.buildTextStyleFromFormat(format, styleString);
-
-      runs.push({
-        text,
-        style,
-      });
-    }
-
-    return runs;
-  }
-
   /**
-   * Maps serialized Lexical JSON AST nodes.
+   * Recursively extracts blocks from live Lexical Node instances.
    */
-  private extractFromSerializedNodes(nodes: unknown[]): ParagraphBlock[] {
+  private flattenAndExtractLiveNodes(nodes: any[]): ParagraphBlock[] {
     const blocks: ParagraphBlock[] = [];
 
-    for (let i = 0; i < nodes.length; i++) {
-      const node = nodes[i] as {
-        key?: string;
-        type?: string;
-        tag?: string;
-        children?: unknown[];
-      };
+    const processLiveNode = (node: any, prefix = '') => {
+      if (!node || typeof node !== 'object') return;
 
-      if (!node || typeof node !== 'object') continue;
+      const type = typeof node.getType === 'function' ? node.getType() : 'paragraph';
+      const tag = typeof node.getTag === 'function' ? node.getTag() : undefined;
+      const id = typeof node.getKey === 'function' ? node.getKey() : `block_${blocks.length}`;
 
-      const id = node.key || `block_${i}`;
-      const type = node.type || 'paragraph';
-      const tag = node.tag;
-      const children = Array.isArray(node.children) ? node.children : [];
+      if (type === 'list') {
+        const children = typeof node.getChildren === 'function' ? node.getChildren() : [];
+        const isOrdered =
+          tag === 'ol' ||
+          (typeof node.getListType === 'function' && node.getListType() === 'number');
+        children.forEach((child: any, idx: number) => {
+          const itemPrefix = isOrdered ? `${idx + 1}. ` : '• ';
+          processLiveNode(child, itemPrefix);
+        });
+        return;
+      }
+
+      if (type === 'table') {
+        const rows = typeof node.getChildren === 'function' ? node.getChildren() : [];
+        for (const row of rows) {
+          const cells = typeof row.getChildren === 'function' ? row.getChildren() : [];
+          for (const cell of cells) {
+            const cellChildren = typeof cell.getChildren === 'function' ? cell.getChildren() : [];
+            const hasBlockChildren = cellChildren.some(
+              (c: any) =>
+                c &&
+                typeof c.getType === 'function' &&
+                (c.getType() === 'paragraph' || c.getType() === 'heading' || c.getType() === 'list')
+            );
+            if (hasBlockChildren) {
+              for (const cellChild of cellChildren) {
+                processLiveNode(cellChild);
+              }
+            } else {
+              processLiveNode(cell);
+            }
+          }
+        }
+        return;
+      }
 
       const runs: TextRun[] = [];
 
-      for (const child of children) {
-        const textChild = child as {
-          text?: string;
-          format?: number;
-          style?: string;
-        };
+      if (prefix) {
+        runs.push({
+          text: prefix,
+          style: this.computeDefaultStyle(type, tag),
+        });
+      }
 
-        if (typeof textChild.text === 'string' && textChild.text.length > 0) {
-          const style = this.buildTextStyleFromFormat(textChild.format || 0, textChild.style || '');
-          runs.push({
-            text: textChild.text,
-            style,
-          });
+      const collectRuns = (childNode: any) => {
+        if (!childNode || typeof childNode !== 'object') return;
+
+        const childType = typeof childNode.getType === 'function' ? childNode.getType() : '';
+
+        if (
+          childType === 'text' ||
+          (typeof childNode.getTextContent === 'function' && !childNode.getChildren)
+        ) {
+          const text = childNode.getTextContent();
+          if (text) {
+            const format = typeof childNode.getFormat === 'function' ? childNode.getFormat() : 0;
+            const styleString =
+              typeof childNode.getStyle === 'function' ? childNode.getStyle() : '';
+            runs.push({
+              text,
+              style: this.buildTextStyleFromFormat(format, styleString),
+            });
+          }
+        } else if (typeof childNode.getChildren === 'function') {
+          if (childType === 'list') {
+            processLiveNode(childNode);
+          } else {
+            for (const nested of childNode.getChildren()) {
+              collectRuns(nested);
+            }
+          }
+        }
+      };
+
+      if (typeof node.getChildren === 'function') {
+        for (const child of node.getChildren()) {
+          collectRuns(child);
         }
       }
 
-      blocks.push({
-        id,
-        runs,
-        defaultStyle: this.computeDefaultStyle(type, tag),
-      });
+      if (
+        runs.length > 0 ||
+        type === 'paragraph' ||
+        type === 'heading' ||
+        type === 'listitem' ||
+        type === 'quote'
+      ) {
+        blocks.push({
+          id,
+          runs:
+            runs.length > 0 ? runs : [{ text: ' ', style: this.computeDefaultStyle(type, tag) }],
+          defaultStyle: this.computeDefaultStyle(type, tag),
+        });
+      }
+    };
+
+    for (const node of nodes) {
+      processLiveNode(node);
     }
 
     return blocks;
