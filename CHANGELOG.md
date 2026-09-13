@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/platenhq/platen-engine/compare/v0.1.2...v0.1.3) (2026-09-13)
+
+
+### Bug Fixes
+
+* **release:** remove registry url to enable tokenless oidc publish ([216dbea](https://github.com/platenhq/platen-engine/commit/216dbea9d3edc5a67ab947ac032359b1203c968c))
+* **release:** remove registry url to enable tokenless oidc publish ([92c8980](https://github.com/platenhq/platen-engine/commit/92c898080d81910d5a720542fb85ffebc7941806))
+
 ## [0.1.2](https://github.com/platenhq/platen-engine/compare/0.1.1...v0.1.2) (2026-09-13)
 
 
