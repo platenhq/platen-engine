@@ -60,7 +60,6 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         with:
           node-version: 22.x
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
