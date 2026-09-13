@@ -1,7 +1,9 @@
 import { LayoutSlicer } from '../core/LayoutSlicer';
 import { EngineOptions, PageSlice, ParagraphBlock } from '../core/Types';
+import { EditorAdapter } from './Types';
 
 export interface PagedEngineBridgeOptions {
+  adapter?: EditorAdapter;
   slicer?: LayoutSlicer;
   engineOptions?: EngineOptions;
 }
@@ -11,6 +13,7 @@ export interface PagedEngineBridgeOptions {
  * Schedules non-blocking layout recalculations with requestAnimationFrame batching.
  */
 export class PagedEngineBridge {
+  private adapter?: EditorAdapter;
   private slicer: LayoutSlicer;
   private engineOptions?: EngineOptions;
   private currentBlocks: ParagraphBlock[] = [];
@@ -20,8 +23,41 @@ export class PagedEngineBridge {
   private pendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: PagedEngineBridgeOptions = {}) {
+    this.adapter = options.adapter;
     this.slicer = options.slicer || new LayoutSlicer();
     this.engineOptions = options.engineOptions;
+  }
+
+  /**
+   * Attaches reactively to an editor instance (Lexical, ProseMirror, etc.).
+   * Automatically extracts blocks on initial attachment and on subsequent changes,
+   * batching layout recalculations.
+   * Returns an unsubscribe/detach teardown function.
+   */
+  public attach(editor: any): () => void {
+    if (!editor) return () => {};
+
+    const update = () => {
+      if (this.adapter) {
+        const blocks = this.adapter.extractParagraphBlocks(editor);
+        this.scheduleUpdate(blocks);
+      }
+    };
+
+    // Initial update
+    update();
+
+    if (this.adapter && typeof this.adapter.subscribe === 'function') {
+      return this.adapter.subscribe(editor, (blocks) => {
+        this.scheduleUpdate(blocks);
+      });
+    }
+
+    if (typeof editor.registerUpdateListener === 'function') {
+      return editor.registerUpdateListener(() => update());
+    }
+
+    return () => {};
   }
 
   /**
