@@ -190,6 +190,66 @@ describe('PagedDocument', () => {
     );
   });
 
+  it('breaks a long paragraph whose text sits in an inline wrapper', async () => {
+    render(
+      <p style={paragraphStyle}>
+        <span>{words(1500)}</span>
+      </p>
+    );
+    const sheets = await settle();
+    const rects = lineRects();
+
+    expect(sheets).toBeGreaterThanOrEqual(3);
+    expectNoLineInDeadZone(rects);
+    expect(pagesUsed(rects).size).toBe(sheets);
+  });
+
+  it('converges when a nested unbreakable block is taller than a page', async () => {
+    render(
+      <>
+        <p style={paragraphStyle}>{words(40)}</p>
+        <p style={paragraphStyle}>
+          <span style={{ display: 'block' }}>
+            <span style={{ display: 'flex', height: 2000 }} />
+          </span>
+        </p>
+        <p className="after" style={paragraphStyle}>
+          {words(400)}
+        </p>
+      </>
+    );
+    expect(await settle()).toBeLessThanOrEqual(5);
+
+    const after = document.querySelector('.after')!;
+    const origin = document.querySelector('.PagedDocumentContent')!.getBoundingClientRect().top;
+    const range = document.createRange();
+    range.selectNodeContents(after);
+    expectNoLineInDeadZone(
+      Array.from(range.getClientRects()).map((r) => ({
+        top: r.top - origin,
+        bottom: r.bottom - origin,
+      }))
+    );
+  });
+
+  it('converges when an inline image is taller than a page', async () => {
+    render(
+      <>
+        <p style={paragraphStyle}>
+          {words(40)}
+          <img
+            alt=""
+            width={200}
+            height={1500}
+            src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+          />
+        </p>
+        <p style={paragraphStyle}>{words(200)}</p>
+      </>
+    );
+    expect(await settle()).toBeLessThanOrEqual(4);
+  });
+
   it('is unaffected by re-renders with fresh option objects', async () => {
     const content = <p style={paragraphStyle}>{words(1500)}</p>;
     render(content, { margins: { top: 96, bottom: 96, left: 96, right: 96 } });
