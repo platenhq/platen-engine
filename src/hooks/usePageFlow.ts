@@ -36,9 +36,12 @@ interface FlowLayout {
 
 const SINGLE_PAGE: FlowLayout = { pageCount: 1, segments: [] };
 
-const BREAKABLE_DISPLAYS = new Set(['block', 'list-item']);
+// Boxes whose lines and child blocks share the flow's formatting context.
+const BREAKABLE_DISPLAYS = new Set(['block', 'list-item', 'inline', 'contents']);
+const REPLACED_ELEMENTS = new Set(['IMG', 'VIDEO', 'CANVAS', 'IFRAME', 'SVG', 'OBJECT', 'EMBED']);
 
-function isUnbreakable(element: HTMLElement): boolean {
+function isUnbreakable(element: Element): boolean {
+  if (REPLACED_ELEMENTS.has(element.tagName.toUpperCase())) return true;
   const style = getComputedStyle(element);
   return (
     !BREAKABLE_DISPLAYS.has(style.display) ||
@@ -48,7 +51,9 @@ function isUnbreakable(element: HTMLElement): boolean {
 }
 
 /**
- * Top-level blocks taller than a page that cannot flow around a spacer, in flow coordinates.
+ * Blocks taller than a page that cannot flow around a spacer, in flow coordinates.
+ * Such a block can sit at any depth, but only inside ancestors that are themselves taller
+ * than a page, so the search descends through oversized breakable boxes only.
  */
 function findOversizedSpans(
   flow: HTMLElement,
@@ -60,18 +65,26 @@ function findOversizedSpans(
   let flowRect: DOMRect | null = null;
   let scale = 1;
 
-  for (const child of Array.from(content.children) as HTMLElement[]) {
-    if (child.offsetHeight <= usableHeight || !isUnbreakable(child)) continue;
+  const visit = (parent: Element) => {
+    for (const child of Array.from(parent.children)) {
+      const rect = child.getBoundingClientRect();
+      if (!flowRect) {
+        flowRect = flow.getBoundingClientRect();
+        // Client rects are affected by ancestor transforms; flow offsets are not.
+        scale = flow.offsetHeight > 0 ? flowRect.height / flow.offsetHeight || 1 : 1;
+      }
+      const height = rect.height / scale;
+      if (height <= usableHeight) continue;
 
-    if (!flowRect) {
-      flowRect = flow.getBoundingClientRect();
-      // Client rects are affected by ancestor transforms; flow offsets are not.
-      scale = flow.offsetHeight > 0 ? flowRect.height / flow.offsetHeight || 1 : 1;
+      if (isUnbreakable(child)) {
+        const top = (rect.top - flowRect.top) / scale;
+        spans.push({ top, bottom: top + height });
+      } else {
+        visit(child);
+      }
     }
-    const rect = child.getBoundingClientRect();
-    const top = (rect.top - flowRect.top) / scale;
-    spans.push({ top, bottom: top + child.offsetHeight });
-  }
+  };
+  visit(content);
 
   return spans;
 }
