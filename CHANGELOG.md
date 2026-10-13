@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/platenhq/platen-engine/compare/v0.2.0...v0.2.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **package:** require react as a peer dependency ([ddb0f62](https://github.com/platenhq/platen-engine/commit/ddb0f62bf52d52dfd7585eae9ee8d8d96ef0ff97))
+* **package:** require react as a peer dependency ([3674f87](https://github.com/platenhq/platen-engine/commit/3674f879a718be81afb1bb853d1857105e2afa77))
+
 ## [0.2.0](https://github.com/platenhq/platen-engine/compare/v0.1.3...v0.2.0) (2026-10-13)
 
 
