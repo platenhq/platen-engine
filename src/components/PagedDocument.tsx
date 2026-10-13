@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { getDocumentHeight, getSheetOffsets, PageFlowOptions } from '../core/PageFlow';
 import { usePageFlow } from '../hooks/usePageFlow';
 import { PageBreakRail } from './PageBreakRail';
-import type { PageInfo } from './PagedSheet';
+import { PageInfo, PagedSheet } from './PagedSheet';
 
 export interface PagedDocumentProps extends PageFlowOptions {
   /** The editor. Its content element must stay in the same formatting context as the rail. */
@@ -63,13 +63,6 @@ export const PagedDocument: React.FC<PagedDocumentProps> = ({
   const documentHeight = getDocumentHeight(pageCount, geometry);
   const scale = zoom > 0 ? zoom : 1;
 
-  const slotStyle: React.CSSProperties = {
-    position: 'absolute',
-    left: `${pageMargins.left}px`,
-    width: `${usableWidth}px`,
-    overflow: 'hidden',
-  };
-
   return (
     <div
       className={`PagedDocument ${className || ''}`.trim()}
@@ -95,45 +88,20 @@ export const PagedDocument: React.FC<PagedDocumentProps> = ({
           } as React.CSSProperties
         }
       >
-        {getSheetOffsets(pageCount, geometry).map((top, index) => {
-          const info: PageInfo = { pageNumber: index + 1, totalPages: pageCount };
-          return (
-            <div
-              key={index}
-              className={`PagedSheet ${sheetClassName || ''}`.trim()}
-              data-page-number={info.pageNumber}
-              style={{
-                position: 'absolute',
-                top: `${top}px`,
-                left: 0,
-                width: `${width}px`,
-                height: `${height}px`,
-                boxSizing: 'border-box',
-                backgroundColor: '#ffffff',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
-                contain: 'strict',
-                ...sheetStyle,
-              }}
-            >
-              {renderHeader && (
-                <div
-                  className="PageHeaderZone"
-                  style={{ ...slotStyle, top: 0, height: `${pageMargins.top}px` }}
-                >
-                  {renderHeader(info)}
-                </div>
-              )}
-              {renderFooter && (
-                <div
-                  className="PageFooterZone"
-                  style={{ ...slotStyle, bottom: 0, height: `${pageMargins.bottom}px` }}
-                >
-                  {renderFooter(info)}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {getSheetOffsets(pageCount, geometry).map((top, index) => (
+          <PagedSheet
+            key={index}
+            pageNumber={index + 1}
+            totalPages={pageCount}
+            width={width}
+            height={height}
+            margins={pageMargins}
+            className={sheetClassName}
+            style={{ position: 'absolute', top: `${top}px`, left: 0, ...sheetStyle }}
+            renderHeader={renderHeader}
+            renderFooter={renderFooter}
+          />
+        ))}
 
         <div
           className="PagedDocumentFlow"
