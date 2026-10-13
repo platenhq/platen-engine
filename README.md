@@ -2,314 +2,150 @@
 
 [![npm version](https://img.shields.io/npm/v/@platen/engine.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/@platen/engine)
 [![license](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](./LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![CI Status](https://img.shields.io/badge/CI-Passing-brightgreen?style=flat-square)](https://github.com/platenhq/platen-engine/actions)
-[![Architecture](https://img.shields.io/badge/Architecture-Hybrid%20Micro--Canvas-orange?style=flat-square)](./ARCHITECTURE.md)
 
-**A high-performance, framework-agnostic hybrid micro-canvas pagination engine for web editors.**  
-Brings desktop-grade multi-page continuous pagination, deterministic line breaking, and subpixel typesetting to the browser without DOM flickering or collaborative CRDT mutation loops.
+**Multi-page pagination for native `contenteditable` editors.**
+Wrap your editor in one component and its content flows across discrete paper sheets, with
+page breaks between lines, including in the middle of a paragraph. The engine never touches
+the editor's DOM or document model, so the caret, selection, IME, spellcheck, undo and
+real-time collaboration keep working exactly as they did.
 
-[Quick Start](#quick-start) • [The Architecture](#the-architecture) • [Why Platen?](#why-platen) • [Usage Examples](#core-usage-examples) • [Roadmap](#roadmap)
-
----
-
-## The Name & Heritage
-
-In traditional letterpress and mechanical typewriters, the **platen** is the precision-machined steel bed or cylindrical roller that presses the paper directly against inked movable type. It guarantees that every glyph strikes the page with uniform pressure, crisp geometry, and exact millimeter margins.
-
-**Platen Engine** brings that same mechanical exactness to the modern web word processor.
+Built for Lexical; works with any editor that renders ordinary block elements.
 
 ---
 
-## Why Platen?
+## The name
 
-Building a true, multi-page paginated document editor on the web is notoriously one of the hardest engineering problems in frontend software. The two historic approaches have fatal trade-offs:
-
-```txt
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             THE PAGINATION TRILEMMA                              │
-├──────────────────────────┬──────────────────────────┬────────────────────────────┤
-│ Naive DOM Splitting      │ Monolithic Canvas        │ Platen Hybrid Micro-Canvas │
-├──────────────────────────┼──────────────────────────┼────────────────────────────┤
-│ • Violent DOM flickering │ • 100% custom input code │ • Zero DOM layout reflows  │
-│ • Cascading reflow loops │ • Breaks IME composition │ • Native IME & mobile keys │
-│ • Destroys CRDT & Undo   │ • Inaccessible to NVDA   │ • Native screen reader nav │
-│ • Inconsistent fonts     │ • Giant GPU memory hog   │ • Zero CRDT mutation loops │
-└──────────────────────────┴──────────────────────────┴────────────────────────────┘
-```
-
-1. **The DOM Reflow Paradox**: Browsers treat HTML elements as continuous flowing boxes. Slicing paragraphs across DOM containers during typing forces layout reflows (the _Cascading Sibling Shift_), triggering 60Hz flickering oscillations and breaking collaborative sync engines like Yjs or Liveblocks.
-2. **The Monolithic Canvas Trap**: Rendering an entire multi-page document onto a single giant HTML5 Canvas (the Google Docs approach) requires rewriting caret blinking, mouse selection, virtual keyboards, Asian language IME (Input Method Editor), and accessibility from scratch in WebAssembly/C++.
-3. **The Platen Solution (The Microsoft Word Online Model)**: Slices paragraphs into discrete **Micro-Canvas Track Items** positioned absolutely inside isolated physical sheet containers. CSS containment (`contain: strict;`) guarantees that typing on Page 1 can never trigger reflows on Page 2.
+On a letterpress or typewriter, the **platen** is the surface that presses paper against
+type so every line lands at an exact position on the page.
 
 ---
 
-## The Architecture
+## How it works
 
-Platen operates across a **6-Layer Hybrid Architecture**:
+A paragraph is one box to the browser, so it cannot be split across two page elements
+without splitting the document itself. Platen does not split anything. Instead:
 
-```txt
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                    PLATEN ENGINE 6-LAYER SYSTEM STACK                        │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Layer 1: Input & IME Capture Proxy                                          │
-│  Transparent floating contenteditable element tracking the subpixel caret.   │
-│  Captures native keystrokes, Japanese/Chinese/Korean IME, and mobile dictation│
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Layer 2: Offscreen Metric Harness                                           │
-│  Deterministic line-breaking solver using OffscreenCanvas and LRU kerning.   │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Layer 3: Clipboard Proxy Bridge                                             │
-│  Intercepts copy/paste to transfer rich HTML, RTF, and plain text.           │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Layer 4: Accessibility Shadow Mirror                                        │
-│  Hidden semantic HTML nodes (<p hidden paraid="...">) ensuring NVDA, JAWS,   │
-│  and VoiceOver read headings, lists, and tables seamlessly.                  │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Layer 5: Discrete Page Sheets & Micro-Canvas Tracks                         │
-│  Physical page cards (Letter, A4) with strict CSS containment.               │
-│  Each paragraph track item renders to its own isolated micro-canvas.         │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Layer 6: Page Adornment System                                              │
-│  Pluggable header, footer, margin, and dynamic page numbering slots.         │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+1. Sheets are painted **behind** the editor as plain decorative boxes.
+2. A zero-height **rail** sits just before the editor content. It holds one invisible,
+   full-width float for every band between two printable areas (bottom margin + gutter +
+   top margin).
+3. A line of text cannot sit beside a full-width float, so the browser's own line layout
+   moves each line that would land in such a band to the top of the next sheet.
 
-For the full architectural whitepaper, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+The only thing the engine computes is how many sheets are needed, from the content height.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for details.
 
 ---
 
-## Quick Start
-
-### Installation
+## Installation
 
 ```bash
 npm install @platen/engine
 ```
 
-> **Note**: `@platen/engine` is completely framework-agnostic. Optional React components and rich-text editor adapters (Meta Lexical, ProseMirror) are bundled with zero mandatory peer dependencies.
+React 18 or 19 is a peer dependency.
 
 ---
 
-## Core Usage Examples
-
-### 1. Headless Layout Slicing (Pure TypeScript)
-
-Use the headless engine to compute deterministic page slices, line breaks, and paragraph tracks without mounting any DOM elements:
-
-```typescript
-import {
-  LayoutSlicer,
-  LineBreaker,
-  MetricEngine,
-  PAGE_SIZES,
-  MARGIN_PRESETS,
-  ParagraphBlock,
-} from '@platen/engine';
-
-// 1. Initialize metric harness and layout slicer
-const metricEngine = new MetricEngine();
-const lineBreaker = new LineBreaker(metricEngine);
-const slicer = new LayoutSlicer({
-  pageSize: PAGE_SIZES.LETTER, // 816 x 1056 px (96 DPI)
-  margins: MARGIN_PRESETS.NORMAL, // 96px on all sides
-  preventWidowsAndOrphans: true,
-});
-
-// 2. Define semantic paragraph blocks
-const blocks: ParagraphBlock[] = [
-  {
-    id: 'para_1',
-    runs: [
-      { text: 'Platen Engine: ', style: { bold: true, fontSize: 18 } },
-      {
-        text: 'Deterministic continuous multi-page pagination for the web.',
-        style: { fontSize: 16 },
-      },
-    ],
-  },
-];
-
-// 3. Compute physical page slices
-const pages = slicer.slice(blocks);
-
-console.log(`Generated ${pages.length} physical page(s)`);
-pages.forEach((page) => {
-  console.log(`Page ${page.pageNumber}: ${page.tracks.length} paragraph track(s)`);
-});
-```
-
----
-
-### 2. Rendering Multi-Page Sheets in React
-
-Render discrete physical sheets inside an auto-centering desk container with CSS containment:
+## Usage
 
 ```tsx
-import React from 'react';
-import { PagedDesk, PagedSheet, PageSlice } from '@platen/engine';
+import { PagedDesk, PagedDocument } from '@platen/engine';
 
-interface DocumentViewerProps {
-  pages: PageSlice[];
-}
-
-export const DocumentViewer: React.FC<DocumentViewerProps> = ({ pages }) => {
+export function WordProcessor() {
   return (
-    <PagedDesk zoom={1.0} deskBackground="#e5e7eb" deskGutter={24}>
-      {pages.map((page) => (
-        <PagedSheet
-          key={page.pageNumber}
-          page={page}
-          renderHeader={(p) => (
-            <div className="flex justify-between text-xs text-gray-400">
-              <span>CONFIDENTIAL</span>
-              <span>Section 1</span>
-            </div>
-          )}
-          renderFooter={(p) => (
-            <div className="text-center text-xs text-gray-400">
-              Page {p.pageNumber} of {pages.length}
-            </div>
-          )}
-        />
-      ))}
+    <PagedDesk>
+      <PagedDocument
+        pageSize="letter" // 'letter' | 'a4' | 'legal' | { width, height }
+        margins={{ top: 96, bottom: 96, left: 96, right: 96 }}
+        deskGutter={20}
+        zoom={1}
+        renderFooter={({ pageNumber, totalPages }) => (
+          <span>
+            Page {pageNumber} of {totalPages}
+          </span>
+        )}
+      >
+        {/* Your editor, e.g. Lexical's <RichTextPlugin contentEditable={...} /> */}
+        <MyEditor />
+      </PagedDocument>
     </PagedDesk>
   );
-};
-```
-
----
-
-### 3. Reactive Lexical Integration
-
-Connect Platen reactively to a **Meta Lexical** editor state with automatic `requestAnimationFrame` debouncing:
-
-```typescript
-import { LexicalEditor } from 'lexical';
-import {
-  LexicalAdapter,
-  PagedEngineBridge,
-  PAGE_SIZES,
-  MARGIN_PRESETS,
-  PageSlice,
-} from '@platen/engine';
-
-export function setupPagedLexical(
-  editor: LexicalEditor,
-  onPagesChange: (pages: PageSlice[]) => void
-) {
-  // 1. Initialize the Lexical AST adapter
-  const adapter = new LexicalAdapter({
-    defaultFontFamily: 'Inter, sans-serif',
-    defaultFontSize: 16,
-    defaultLineHeight: 24,
-  });
-
-  // 2. Initialize the reactive layout bridge
-  const bridge = new PagedEngineBridge({
-    adapter,
-    pageSize: PAGE_SIZES.LETTER,
-    margins: MARGIN_PRESETS.NORMAL,
-  });
-
-  // 3. Subscribe to multi-page layout recalculations
-  const unsubscribeLayout = bridge.onLayoutChange((pages) => {
-    onPagesChange(pages);
-  });
-
-  // 4. Attach reactive listener to Lexical editor mutations
-  const detachEditor = bridge.attach(editor);
-
-  return () => {
-    unsubscribeLayout();
-    detachEditor();
-    bridge.destroy();
-  };
 }
 ```
 
----
+### `PagedDocument` props
 
-### 4. Reactive ProseMirror / TipTap Integration
+| Prop                           | Default                    | Purpose                                               |
+| :----------------------------- | :------------------------- | :---------------------------------------------------- |
+| `pageSize`                     | `'letter'`                 | Preset name or `{ width, height }` in CSS pixels      |
+| `margins`                      | 96px on every side         | Page margins; any side may be omitted                 |
+| `deskGutter`                   | `20`                       | Gap between sheets                                    |
+| `zoom`                         | `1`                        | Scale factor; page breaks do not move when it changes |
+| `contentSelector`              | `[contenteditable="true"]` | Element whose children are the top-level blocks       |
+| `maxPages`                     | `1000`                     | Upper bound on rendered sheets                        |
+| `renderHeader`, `renderFooter` |                            | Rendered in each sheet's top and bottom margin        |
+| `sheetClassName`, `sheetStyle` |                            | Styling for each sheet                                |
+| `onPageCountChange`            |                            | Called when the number of sheets changes              |
 
-Connect Platen directly to **ProseMirror** documents:
+### Layout requirements
 
-```typescript
-import { EditorState } from 'prosemirror-state';
-import { ProseMirrorAdapter, LayoutSlicer, PAGE_SIZES, MARGIN_PRESETS } from '@platen/engine';
+- Every element between `PagedDocument` and the editable element must be a plain block: no
+  `overflow`, `contain`, `float`, absolute positioning, and not a flex or grid item. In
+  development the engine logs a warning naming the offending element.
+- The editable content should have no padding of its own; `PagedDocument` applies the page
+  margins.
 
-const adapter = new ProseMirrorAdapter();
-const slicer = new LayoutSlicer({
-  pageSize: PAGE_SIZES.A4,
-  margins: MARGIN_PRESETS.MODERATE,
-});
+### Styling blocks
 
-// Extract semantic paragraph blocks from ProseMirror doc
-const blocks = adapter.extractParagraphBlocks(editorState.doc);
+- A block that forms its own formatting context (a table, or anything with
+  `display: flow-root`) is moved to the next sheet whole. Give code blocks, callouts and
+  other blocks with a background or border `display: flow-root`, otherwise their box paints
+  across the gap while their lines flow around it.
+- `PagedDocument` exposes `--platen-usable-width` and `--platen-usable-height`. Use them to
+  cap media: `img { max-height: var(--platen-usable-height); }`.
 
-// Slice into multi-page layout
-const pages = slicer.slice(blocks);
-```
+### Lower-level API
 
----
-
-## Supported Page Geometries & Presets
-
-Platen exports industry-standard paper formats ($96\text{ DPI}$ screen metrics):
-
-| Paper Size | Width ($\text{px}$) | Height ($\text{px}$) | Dimensions ($\text{in} / \text{mm}$) |
-| :--------- | :------------------ | :------------------- | :----------------------------------- |
-| `LETTER`   | $816\text{px}$      | $1056\text{px}$      | $8.5 \times 11.0\text{ in}$          |
-| `A4`       | $794\text{px}$      | $1123\text{px}$      | $210 \times 297\text{ mm}$           |
-| `LEGAL`    | $816\text{px}$      | $1344\text{px}$      | $8.5 \times 14.0\text{ in}$          |
-
-### Standard Margin Presets
-
-- `NORMAL`: $96\text{px}$ ($1.0\text{ in}$) top, bottom, left, right.
-- `NARROW`: $48\text{px}$ ($0.5\text{ in}$) top, bottom, left, right.
-- `MODERATE`: Top/bottom $96\text{px}$ ($1.0\text{ in}$), left/right $72\text{px}$ ($0.75\text{ in}$).
-- `WIDE`: Top/bottom $96\text{px}$ ($1.0\text{ in}$), left/right $192\text{px}$ ($2.0\text{ in}$).
+`usePageFlow`, `PageBreakRail` and `PagedSheet` are exported for custom layouts, along with
+the pure helpers `resolvePageGeometry`, `computePageCount`, `getSpacerSegments`,
+`getSheetOffsets`, `getDocumentHeight` and `pageForOffset`.
 
 ---
 
-## Verification & Quality Assurance
+## Page presets
 
-Platen Engine maintains strict verification standards:
+| Preset   | Size at 96 DPI | Physical size |
+| :------- | :------------- | :------------ |
+| `letter` | 816 x 1056     | 8.5 x 11 in   |
+| `a4`     | 794 x 1123     | 210 x 297 mm  |
+| `legal`  | 816 x 1344     | 8.5 x 14 in   |
 
-- **100% Type Export Integrity**: Verified via `@arethetypeswrong/cli` across all modern module resolutions (`node10`, `node16-cjs`, `node16-esm`, `bundler`).
-- **Zero Package Bloat**: Zero mandatory runtime dependencies; peer dependencies (`react`, `react-dom`) are optional.
-- **Dual Bundle Distribution**: Pre-compiled CJS (`dist/index.js`) and ESM (`dist/index.mjs`) with `.d.ts` declaration maps generated via `tsup`.
-- **Unit Test Coverage**: Automated test suites covering line breaking, coordinate positioning, micro-canvas rendering, selection overlays, and framework AST adapters.
+---
+
+## Known limits
+
+- An unbreakable block taller than a page (a very long table) runs across the gap between
+  sheets. Row-level table splitting is not implemented yet.
+- Widow and orphan control, repeated table headers and print/PDF output are not
+  implemented yet.
+
+---
+
+## Development
 
 ```bash
-# Run unit tests
-npm test
-
-# Type check
+npm test              # unit tests (Node)
+npm run test:browser  # layout tests in headless Chromium
 npm run typecheck
-
-# Check export compatibility
+npm run build
 npm run check:exports
 ```
 
----
-
-## Roadmap
-
-- [x] Sprint 1: Headless Layout Slicer & Deterministic Line Breaker
-- [x] Sprint 2: Micro-Canvas Track System & Screen-Reader Shadow Mirrors
-- [x] Sprint 3: Subpixel Caret Coordinate Solver & Cross-Sheet Selection Overlay
-- [x] Sprint 4: Universal Meta Lexical & ProseMirror Framework Adapters
-- [ ] Phase 5: Multi-page table row splitting with repeated header rows
-- [ ] Phase 6: Interactive WYSIWYG Header & Footer Margin Adornments
-- [ ] Phase 7: Dynamic Footnote & Sidenote Partitioning Solver
-- [ ] Phase 8: Vector Print & Headless PDF Exporter
-
-Read the complete engineering roadmap in [Section 12 of ARCHITECTURE.md](./ARCHITECTURE.md#12-advanced-roadmap--future-engineering-horizons).
+The browser tests need Chromium once: `npx playwright install chromium`.
 
 ---
 
 ## License
 
-Licensed under the [MIT License](./LICENSE).
-Copyright © 2026 Platen Authors (Trayshmhirk).
+[MIT](./LICENSE)
