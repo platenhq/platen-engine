@@ -1,7 +1,7 @@
 {
   "name": "@platen/engine",
   "version": "0.1.3",
-  "description": "Framework-agnostic hybrid micro-canvas pagination engine for web editors",
+  "description": "Multi-page pagination for native contenteditable editors, with page breaks between lines",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -22,23 +22,24 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "security:check": "npm audit --audit-level=high",
     "security:fix": "npm audit fix",
-    "check:exports": "publint && attw --pack ."
+    "check:exports": "publint && attw --pack .",
+    "test:browser": "vitest run --project browser"
   },
   "keywords": [
     "pagination",
-    "micro-canvas",
+    "page-breaks",
     "word-processor",
     "rich-text",
+    "contenteditable",
     "lexical",
-    "prosemirror",
-    "typesetting"
+    "react"
   ],
   "author": "Platen Authors (Trayshmhirk)",
   "license": "MIT",
@@ -78,6 +79,8 @@
     "@types/node": "^26.4.1",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@vitest/browser-playwright": "^4.1.11",
+    "playwright": "^1.64.0",
     "prettier": "^3.4.2",
     "publint": "^0.3.24",
     "react": "^18.3.1",
