@@ -1,4 +1,4 @@
-import { TextStyle, TrackItem } from '../core/Types';
+import { ParagraphTrackItem, TextStyle, TrackItem } from '../core/Types';
 
 export interface MicroCanvasRenderOptions {
   dpr?: number;
@@ -14,9 +14,11 @@ export class MicroCanvasRenderer {
    */
   public renderTrack(
     canvas: HTMLCanvasElement,
-    track: TrackItem,
+    track: ParagraphTrackItem | TrackItem,
     options?: MicroCanvasRenderOptions
   ): void {
+    if (!('lines' in track) || !track.lines) return;
+
     const dpr = options?.dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
 
     // Compute pixel dimensions scaled for high-density displays

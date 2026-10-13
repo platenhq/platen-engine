@@ -1,5 +1,5 @@
 import { LayoutSlicer } from '../core/LayoutSlicer';
-import { EngineOptions, PageSlice, ParagraphBlock } from '../core/Types';
+import { DocumentBlock, EngineOptions, PageSlice, TableColumnResizePayload } from '../core/Types';
 import { EditorAdapter } from './Types';
 
 export interface PagedEngineBridgeOptions {
@@ -16,9 +16,10 @@ export class PagedEngineBridge {
   private adapter?: EditorAdapter;
   private slicer: LayoutSlicer;
   private engineOptions?: EngineOptions;
-  private currentBlocks: ParagraphBlock[] = [];
+  private currentBlocks: DocumentBlock[] = [];
   private currentPages: PageSlice[] = [];
   private listeners: Set<(pages: PageSlice[]) => void> = new Set();
+  private resizeListeners: Set<(payload: TableColumnResizePayload) => void> = new Set();
   private pendingRafId: number | null = null;
   private pendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -63,7 +64,7 @@ export class PagedEngineBridge {
   /**
    * Synchronously sets blocks, recalculates pagination, and notifies subscribers.
    */
-  public setBlocks(blocks: ParagraphBlock[]): PageSlice[] {
+  public setBlocks(blocks: DocumentBlock[]): PageSlice[] {
     this.cancelPendingSchedule();
     this.currentBlocks = blocks;
     this.currentPages = this.slicer.paginate(blocks, this.engineOptions);
@@ -74,7 +75,7 @@ export class PagedEngineBridge {
   /**
    * Schedules layout recalculation on the next animation frame to batch rapid typing strokes.
    */
-  public scheduleUpdate(blocks: ParagraphBlock[]): void {
+  public scheduleUpdate(blocks: DocumentBlock[]): void {
     this.currentBlocks = blocks;
 
     if (this.pendingRafId !== null || this.pendingTimeoutId !== null) {
@@ -106,7 +107,7 @@ export class PagedEngineBridge {
   /**
    * Returns current active paragraph blocks.
    */
-  public getBlocks(): ParagraphBlock[] {
+  public getBlocks(): DocumentBlock[] {
     return this.currentBlocks;
   }
 
@@ -118,6 +119,34 @@ export class PagedEngineBridge {
     return () => {
       this.listeners.delete(callback);
     };
+  }
+
+  /**
+   * Subscribes to table column resize events.
+   */
+  public onTableColumnResize(callback: (payload: TableColumnResizePayload) => void): () => void {
+    this.resizeListeners.add(callback);
+    return () => {
+      this.resizeListeners.delete(callback);
+    };
+  }
+
+  /**
+   * Emits a table column resize event across the bridge.
+   */
+  public emitTableColumnResize(payload: TableColumnResizePayload): void {
+    for (const listener of this.resizeListeners) {
+      listener(payload);
+    }
+  }
+
+  /**
+   * Generic emit method for event dispatch.
+   */
+  public emit(event: string, payload: any): void {
+    if (event === 'table:column-resize' || event === 'tableColumnResize') {
+      this.emitTableColumnResize(payload);
+    }
   }
 
   /**
@@ -136,6 +165,7 @@ export class PagedEngineBridge {
   public destroy(): void {
     this.cancelPendingSchedule();
     this.listeners.clear();
+    this.resizeListeners.clear();
     this.currentBlocks = [];
     this.currentPages = [];
   }

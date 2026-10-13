@@ -1,4 +1,13 @@
-import { ParagraphBlock, TextRun, TextStyle } from '../../core/Types';
+import {
+  DocumentBlock,
+  ImageBlock,
+  ParagraphBlock,
+  TableBlock,
+  TableCellBlock,
+  TableRowBlock,
+  TextRun,
+  TextStyle,
+} from '../../core/Types';
 import { EditorAdapter } from '../Types';
 
 // Lexical Text Format Flags (Bitmasks)
@@ -22,7 +31,7 @@ export interface LexicalAdapterOptions {
 
 /**
  * Universal Lexical AST Adapter.
- * Translates Lexical editor states and serialized AST trees into paged-engine ParagraphBlocks.
+ * Translates Lexical editor states and serialized AST trees into structured DocumentBlocks (Paragraphs, Tables, Images).
  */
 export class LexicalAdapter implements EditorAdapter {
   private defaultFontFamily: string;
@@ -38,9 +47,9 @@ export class LexicalAdapter implements EditorAdapter {
   }
 
   /**
-   * Extracts ParagraphBlocks from a Lexical Editor, EditorState, or Serialized AST JSON.
+   * Extracts DocumentBlocks from a Lexical Editor, EditorState, or Serialized AST JSON.
    */
-  public extractParagraphBlocks(source: unknown): ParagraphBlock[] {
+  public extractParagraphBlocks(source: unknown): DocumentBlock[] {
     if (!source || typeof source !== 'object') return [];
 
     // Case 1: Serialized Lexical AST object ({ root: { children: [...] } })
@@ -95,7 +104,7 @@ export class LexicalAdapter implements EditorAdapter {
         listener: (payload: { editorState: unknown }) => void
       ) => () => void;
     },
-    callback: (blocks: ParagraphBlock[]) => void
+    callback: (blocks: DocumentBlock[]) => void
   ): () => void {
     if (typeof editor.registerUpdateListener === 'function') {
       return editor.registerUpdateListener(({ editorState }) => {
@@ -110,7 +119,7 @@ export class LexicalAdapter implements EditorAdapter {
   /**
    * Traverses Lexical active context via provided getRootFn, globalThis.$getRoot, or editor node map.
    */
-  private extractFromLexicalContext(context: unknown): ParagraphBlock[] {
+  private extractFromLexicalContext(context: unknown): DocumentBlock[] {
     let root: any = null;
 
     if (this.getRootFn) {
@@ -131,11 +140,11 @@ export class LexicalAdapter implements EditorAdapter {
   }
 
   /**
-   * Recursively extracts blocks from serialized Lexical JSON nodes, flattening
-   * nested structures (lists, tables, callouts) into printable paragraph blocks.
+   * Recursively extracts blocks from serialized Lexical JSON nodes.
+   * Preserves TableBlock (with row and cell blocks) and ImageBlock.
    */
-  private flattenAndExtractNodes(nodes: unknown[]): ParagraphBlock[] {
-    const blocks: ParagraphBlock[] = [];
+  private flattenAndExtractNodes(nodes: unknown[]): DocumentBlock[] {
+    const blocks: DocumentBlock[] = [];
 
     const processNode = (node: any, prefix = '') => {
       if (!node || typeof node !== 'object') return;
@@ -143,6 +152,20 @@ export class LexicalAdapter implements EditorAdapter {
       const type = node.type || 'paragraph';
       const tag = node.tag;
       const id = node.key || `block_${blocks.length}`;
+
+      // Handle Images: extract ImageBlock
+      if (type === 'image' || type === 'inline-image') {
+        blocks.push({
+          type: 'image',
+          id: node.key || `image_${blocks.length}`,
+          src: node.src || node.__src || '',
+          altText: node.altText || node.__altText || '',
+          width: node.width || node.__width || 400,
+          height: node.height || node.__height || 300,
+          caption: node.caption || '',
+        });
+        return;
+      }
 
       // Handle Lists: traverse each ListItemNode
       if (type === 'list') {
@@ -156,25 +179,62 @@ export class LexicalAdapter implements EditorAdapter {
         return;
       }
 
-      // Handle Tables: traverse each row and cell
+      // Handle Tables: preserve TableBlock with rows and cells
       if (type === 'table') {
         const rows = Array.isArray(node.children) ? node.children : [];
-        for (const row of rows) {
+        const tableRows: TableRowBlock[] = [];
+        let maxCols = 0;
+
+        rows.forEach((row: any, rIdx: number) => {
           const cells = Array.isArray(row?.children) ? row.children : [];
-          for (const cell of cells) {
+          if (cells.length > maxCols) maxCols = cells.length;
+
+          const rowCells: TableCellBlock[] = [];
+          cells.forEach((cell: any, cIdx: number) => {
             const cellChildren = Array.isArray(cell?.children) ? cell.children : [];
-            const hasBlockChildren = cellChildren.some(
-              (c: any) => c && (c.type === 'paragraph' || c.type === 'heading' || c.type === 'list')
-            );
-            if (hasBlockChildren) {
-              for (const cellChild of cellChildren) {
-                processNode(cellChild);
+            const cellBlocks: ParagraphBlock[] = [];
+            const subAdapter = new LexicalAdapter({
+              defaultFontFamily: this.defaultFontFamily,
+              defaultFontSize: this.defaultFontSize,
+              defaultLineHeight: this.defaultLineHeight,
+            });
+            const extracted = subAdapter.flattenAndExtractNodes(cellChildren);
+            for (const b of extracted) {
+              if (!b.type || b.type === 'paragraph') {
+                cellBlocks.push(b as ParagraphBlock);
               }
-            } else {
-              processNode(cell);
             }
-          }
-        }
+            if (cellBlocks.length === 0) {
+              cellBlocks.push({
+                id: cell.key || `cell_${rIdx}_${cIdx}_p`,
+                runs: [{ text: ' ', style: this.computeDefaultStyle('paragraph') }],
+                defaultStyle: this.computeDefaultStyle('paragraph'),
+              });
+            }
+
+            rowCells.push({
+              id: cell.key || `cell_${rIdx}_${cIdx}`,
+              colSpan: cell.colSpan || 1,
+              rowSpan: cell.rowSpan || 1,
+              width: cell.width,
+              backgroundColor: cell.backgroundColor,
+              blocks: cellBlocks,
+            });
+          });
+
+          tableRows.push({
+            id: row?.key || `row_${rIdx}`,
+            cells: rowCells,
+            height: row?.height,
+          });
+        });
+
+        blocks.push({
+          type: 'table',
+          id: node.key || `table_${blocks.length}`,
+          columns: maxCols || 1,
+          rows: tableRows,
+        });
         return;
       }
 
@@ -208,7 +268,9 @@ export class LexicalAdapter implements EditorAdapter {
         }
       };
 
-      if (Array.isArray(node.children)) {
+      if (typeof node.text === 'string' && node.text.length > 0) {
+        collectRuns(node);
+      } else if (Array.isArray(node.children)) {
         for (const child of node.children) {
           collectRuns(child);
         }
@@ -240,9 +302,10 @@ export class LexicalAdapter implements EditorAdapter {
 
   /**
    * Recursively extracts blocks from live Lexical Node instances.
+   * Preserves TableBlock (with row and cell blocks) and ImageBlock.
    */
-  private flattenAndExtractLiveNodes(nodes: any[]): ParagraphBlock[] {
-    const blocks: ParagraphBlock[] = [];
+  private flattenAndExtractLiveNodes(nodes: any[]): DocumentBlock[] {
+    const blocks: DocumentBlock[] = [];
 
     const processLiveNode = (node: any, prefix = '') => {
       if (!node || typeof node !== 'object') return;
@@ -250,6 +313,26 @@ export class LexicalAdapter implements EditorAdapter {
       const type = typeof node.getType === 'function' ? node.getType() : 'paragraph';
       const tag = typeof node.getTag === 'function' ? node.getTag() : undefined;
       const id = typeof node.getKey === 'function' ? node.getKey() : `block_${blocks.length}`;
+
+      // Handle Images: extract ImageBlock
+      if (type === 'image' || type === 'inline-image') {
+        const src = typeof node.getSrc === 'function' ? node.getSrc() : node.__src || '';
+        const altText =
+          typeof node.getAltText === 'function' ? node.getAltText() : node.__altText || '';
+        const width = typeof node.getWidth === 'function' ? node.getWidth() : node.__width || 400;
+        const height =
+          typeof node.getHeight === 'function' ? node.getHeight() : node.__height || 300;
+
+        blocks.push({
+          type: 'image',
+          id: typeof node.getKey === 'function' ? node.getKey() : `image_${blocks.length}`,
+          src,
+          altText,
+          width: typeof width === 'number' ? width : 400,
+          height: typeof height === 'number' ? height : 300,
+        });
+        return;
+      }
 
       if (type === 'list') {
         const children = typeof node.getChildren === 'function' ? node.getChildren() : [];
@@ -263,27 +346,65 @@ export class LexicalAdapter implements EditorAdapter {
         return;
       }
 
+      // Handle Tables: preserve TableBlock with rows and cells
       if (type === 'table') {
         const rows = typeof node.getChildren === 'function' ? node.getChildren() : [];
-        for (const row of rows) {
+        const tableRows: TableRowBlock[] = [];
+        let maxCols = 0;
+
+        rows.forEach((row: any, rIdx: number) => {
           const cells = typeof row.getChildren === 'function' ? row.getChildren() : [];
-          for (const cell of cells) {
+          if (cells.length > maxCols) maxCols = cells.length;
+
+          const rowCells: TableCellBlock[] = [];
+          cells.forEach((cell: any, cIdx: number) => {
             const cellChildren = typeof cell.getChildren === 'function' ? cell.getChildren() : [];
-            const hasBlockChildren = cellChildren.some(
-              (c: any) =>
-                c &&
-                typeof c.getType === 'function' &&
-                (c.getType() === 'paragraph' || c.getType() === 'heading' || c.getType() === 'list')
-            );
-            if (hasBlockChildren) {
-              for (const cellChild of cellChildren) {
-                processLiveNode(cellChild);
+            const cellBlocks: ParagraphBlock[] = [];
+            const subAdapter = new LexicalAdapter({
+              defaultFontFamily: this.defaultFontFamily,
+              defaultFontSize: this.defaultFontSize,
+              defaultLineHeight: this.defaultLineHeight,
+            });
+            const extracted = subAdapter.flattenAndExtractLiveNodes(cellChildren);
+            for (const b of extracted) {
+              if (!b.type || b.type === 'paragraph') {
+                cellBlocks.push(b as ParagraphBlock);
               }
-            } else {
-              processLiveNode(cell);
             }
-          }
-        }
+            if (cellBlocks.length === 0) {
+              cellBlocks.push({
+                id: typeof cell.getKey === 'function' ? cell.getKey() : `cell_${rIdx}_${cIdx}_p`,
+                runs: [{ text: ' ', style: this.computeDefaultStyle('paragraph') }],
+                defaultStyle: this.computeDefaultStyle('paragraph'),
+              });
+            }
+
+            rowCells.push({
+              id: typeof cell.getKey === 'function' ? cell.getKey() : `cell_${rIdx}_${cIdx}`,
+              colSpan: typeof cell.getColSpan === 'function' ? cell.getColSpan() : 1,
+              rowSpan: typeof cell.getRowSpan === 'function' ? cell.getRowSpan() : 1,
+              width: typeof cell.getWidth === 'function' ? cell.getWidth() : undefined,
+              backgroundColor:
+                typeof cell.getBackgroundColor === 'function'
+                  ? cell.getBackgroundColor()
+                  : undefined,
+              blocks: cellBlocks,
+            });
+          });
+
+          tableRows.push({
+            id: typeof row.getKey === 'function' ? row.getKey() : `row_${rIdx}`,
+            cells: rowCells,
+            height: typeof row.getHeight === 'function' ? row.getHeight() : undefined,
+          });
+        });
+
+        blocks.push({
+          type: 'table',
+          id: typeof node.getKey === 'function' ? node.getKey() : `table_${blocks.length}`,
+          columns: maxCols || 1,
+          rows: tableRows,
+        });
         return;
       }
 
@@ -326,7 +447,12 @@ export class LexicalAdapter implements EditorAdapter {
         }
       };
 
-      if (typeof node.getChildren === 'function') {
+      if (
+        type === 'text' ||
+        (typeof node.getTextContent === 'function' && typeof node.getChildren !== 'function')
+      ) {
+        collectRuns(node);
+      } else if (typeof node.getChildren === 'function') {
         for (const child of node.getChildren()) {
           collectRuns(child);
         }

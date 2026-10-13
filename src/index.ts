@@ -13,6 +13,9 @@ export * from './core/LineBreaker';
 
 // Layout & Track Slicing Engine
 export * from './core/LayoutSlicer';
+export * from './core/PaginationMetrics';
+export * from './layout/BlockPagination';
+export * from './hooks/useBlockPagination';
 
 // Caret & Selection Coordinate Solver
 export * from './core/CaretPositioner';
@@ -27,9 +30,10 @@ export * from './renderer/AccessibilityMesh';
 export * from './renderer/SyntheticCaret';
 export * from './renderer/SelectionOverlay';
 
-// Native Input & Clipboard Proxies
+// Native Input & Clipboard Proxies (including Microsoft Word Online WACEditingElement)
 export * from './proxy/InputProxy';
 export * from './proxy/ClipboardProxy';
+export * from './proxy/WACEditingElement';
 
 // React Sheet & Desk Components
 export * from './components/PagedSheet';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CaretPositioner } from '../src/core/CaretPositioner';
 import { LayoutSlicer } from '../src/core/LayoutSlicer';
-import { ParagraphBlock, TextStyle } from '../src/core/Types';
+import { ParagraphBlock, ParagraphTrackItem, TextStyle } from '../src/core/Types';
 
 describe('CaretPositioner', () => {
   const defaultStyle: TextStyle = {
@@ -69,7 +69,9 @@ describe('CaretPositioner', () => {
     expect(pages.length).toBeGreaterThanOrEqual(2);
 
     // Get character offset from the first line on Page 2
-    const page2Track = pages[1].tracks.find((t) => t.paraId === 'p_split');
+    const page2Track = (pages[1].tracks as ParagraphTrackItem[]).find(
+      (t) => t.paraId === 'p_split'
+    );
     expect(page2Track).toBeDefined();
 
     const page2StartChar = page2Track!.lines[0].startIndex;

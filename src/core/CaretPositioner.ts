@@ -6,7 +6,7 @@ import {
   DocumentSelection,
   SelectionRect,
 } from './SelectionTypes';
-import { PageSlice, TextLine, TrackItem } from './Types';
+import { PageSlice, ParagraphTrackItem, TextLine, TrackItem } from './Types';
 
 /**
  * Bidirectional coordinate solver.
@@ -30,7 +30,7 @@ export class CaretPositioner {
   ): CaretCoordinates | null {
     for (const page of pages) {
       for (const track of page.tracks) {
-        if (track.paraId !== paraId) continue;
+        if (!('lines' in track) || track.paraId !== paraId) continue;
 
         let lineYInTrack = 0;
 
@@ -74,11 +74,16 @@ export class CaretPositioner {
     const page = pages[pageIndex];
     if (!page || page.tracks.length === 0) return null;
 
+    const paragraphTracks = page.tracks.filter(
+      (t): t is ParagraphTrackItem => 'lines' in t && Boolean(t.lines && t.lines.length > 0)
+    );
+    if (paragraphTracks.length === 0) return null;
+
     // Find the track item containing or closest to clickY
-    let targetTrack: TrackItem = page.tracks[0];
+    let targetTrack: ParagraphTrackItem = paragraphTracks[0];
     let minTrackDist = Infinity;
 
-    for (const track of page.tracks) {
+    for (const track of paragraphTracks) {
       if (clickY >= track.y && clickY <= track.y + track.height) {
         targetTrack = track;
         break;
@@ -157,6 +162,7 @@ export class CaretPositioner {
 
     for (const page of pages) {
       for (const track of page.tracks) {
+        if (!('lines' in track) || !track.lines) continue;
         let lineYInTrack = 0;
 
         for (const line of track.lines) {
@@ -261,10 +267,11 @@ export class CaretPositioner {
     // Traverse document to find which paragraph appears first
     for (const page of pages) {
       for (const track of page.tracks) {
-        if (track.paraId === anchor.paraId) {
+        const trackParaId = 'paraId' in track ? track.paraId : undefined;
+        if (trackParaId === anchor.paraId) {
           return { start: anchor, end: head };
         }
-        if (track.paraId === head.paraId) {
+        if (trackParaId === head.paraId) {
           return { start: head, end: anchor };
         }
       }

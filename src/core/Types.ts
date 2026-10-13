@@ -46,6 +46,7 @@ export interface TextLine {
 }
 
 export interface ParagraphBlock {
+  type?: 'paragraph';
   id: string; // paraid matching semantic AST node
   runs: TextRun[];
   defaultStyle?: TextStyle;
@@ -54,7 +55,47 @@ export interface ParagraphBlock {
   spaceAfter?: number;
 }
 
-export interface TrackItem {
+export interface TableCellBlock {
+  id: string;
+  colSpan?: number;
+  rowSpan?: number;
+  width?: number;
+  blocks: ParagraphBlock[];
+  backgroundColor?: string;
+}
+
+export interface TableRowBlock {
+  id: string;
+  cells: TableCellBlock[];
+  height?: number;
+}
+
+export interface TableBlock {
+  type: 'table';
+  id: string; // tableId matching Lexical TableNode
+  columns: number;
+  rows: TableRowBlock[];
+  columnWidths?: number[];
+  spaceBefore?: number;
+  spaceAfter?: number;
+}
+
+export interface ImageBlock {
+  type: 'image';
+  id: string; // imageId matching Lexical ImageNode
+  src: string;
+  altText?: string;
+  width: number;
+  height: number;
+  caption?: string;
+  spaceBefore?: number;
+  spaceAfter?: number;
+}
+
+export type DocumentBlock = ParagraphBlock | TableBlock | ImageBlock;
+
+export interface ParagraphTrackItem {
+  type?: 'paragraph';
   id: string; // unique track item ID (e.g. "p_100_track_0")
   paraId: string; // shared paraid across slices
   lineStart: number; // index of first line in block.lines
@@ -66,6 +107,45 @@ export interface TrackItem {
   height: number;
   isFirstSlice: boolean;
   isLastSlice: boolean;
+}
+
+export interface TableTrackItem {
+  type: 'table';
+  id: string;
+  tableId: string;
+  rows: TableRowBlock[];
+  columnWidths: number[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  startRowIndex: number;
+  endRowIndex: number;
+  isFirstSlice: boolean;
+  isLastSlice: boolean;
+}
+
+export interface GraphicTrackItem {
+  type: 'image';
+  id: string;
+  imageId: string;
+  src: string;
+  altText?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isFirstSlice: boolean;
+  isLastSlice: boolean;
+}
+
+export type AnyTrackItem = ParagraphTrackItem | TableTrackItem | GraphicTrackItem;
+export type TrackItem = ParagraphTrackItem | TableTrackItem | GraphicTrackItem;
+
+export interface TableColumnResizePayload {
+  tableId: string;
+  colIndex: number;
+  width: number;
 }
 
 export interface PageSlice {

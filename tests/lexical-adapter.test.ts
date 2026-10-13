@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { LEXICAL_FORMAT, LexicalAdapter } from '../src/adapters/lexical/LexicalAdapter';
 import { LayoutSlicer } from '../src/core/LayoutSlicer';
+import { ImageBlock, ParagraphBlock, TableBlock } from '../src/core/Types';
 
 describe('LexicalAdapter', () => {
   const adapter = new LexicalAdapter();
@@ -43,7 +44,7 @@ describe('LexicalAdapter', () => {
       },
     };
 
-    const blocks = adapter.extractParagraphBlocks(serializedLexical);
+    const blocks = adapter.extractParagraphBlocks(serializedLexical) as ParagraphBlock[];
 
     expect(blocks).toHaveLength(2);
 
@@ -85,7 +86,7 @@ describe('LexicalAdapter', () => {
       },
     };
 
-    const blocks = adapter.extractParagraphBlocks(serialized);
+    const blocks = adapter.extractParagraphBlocks(serialized) as ParagraphBlock[];
     expect(blocks).toHaveLength(1);
     const run = blocks[0].runs[0];
     expect(run.style?.fontSize).toBe(22);
@@ -141,7 +142,12 @@ describe('LexicalAdapter', () => {
               {
                 key: 'json_p1',
                 type: 'paragraph',
-                children: [{ text: 'Extracted via toJSON()', format: 0 }],
+                children: [
+                  {
+                    text: 'Extracted via toJSON()',
+                    format: 0,
+                  },
+                ],
               },
             ],
           },
@@ -149,7 +155,7 @@ describe('LexicalAdapter', () => {
       }),
     };
 
-    const blocks = adapter.extractParagraphBlocks(mockEditor);
+    const blocks = adapter.extractParagraphBlocks(mockEditor) as ParagraphBlock[];
     expect(blocks).toHaveLength(1);
     expect(blocks[0].id).toBe('json_p1');
     expect(blocks[0].runs[0].text).toBe('Extracted via toJSON()');
@@ -183,7 +189,7 @@ describe('LexicalAdapter', () => {
       }),
     };
 
-    const blocks = customAdapter.extractParagraphBlocks(mockEditor);
+    const blocks = customAdapter.extractParagraphBlocks(mockEditor) as ParagraphBlock[];
     expect(blocks).toHaveLength(1);
     expect(blocks[0].id).toBe('live_p1');
     expect(blocks[0].runs[0].text).toBe('Live node text from getRootFn');
@@ -215,7 +221,7 @@ describe('LexicalAdapter', () => {
       }),
     };
 
-    const blocks = adapter.extractParagraphBlocks(mockEditor);
+    const blocks = adapter.extractParagraphBlocks(mockEditor) as ParagraphBlock[];
     expect(blocks).toHaveLength(1);
     expect(blocks[0].id).toBe('nodemap_p1');
     expect(blocks[0].runs[0].text).toBe('NodeMap fallback text');
@@ -263,7 +269,7 @@ describe('LexicalAdapter', () => {
       },
     };
 
-    const blocks = adapter.extractParagraphBlocks(serializedLists);
+    const blocks = adapter.extractParagraphBlocks(serializedLists) as ParagraphBlock[];
     expect(blocks).toHaveLength(4);
 
     // Bullet items
@@ -331,10 +337,15 @@ describe('LexicalAdapter', () => {
     };
 
     const blocks = adapter.extractParagraphBlocks(serializedTable);
-    expect(blocks).toHaveLength(3);
-    expect(blocks[0].runs[0].text).toBe('Cell 1 Header');
-    expect(blocks[1].runs[0].text).toBe('Cell 2 Header');
-    expect(blocks[2].runs[0].text).toBe('Direct cell text');
+    expect(blocks).toHaveLength(1);
+    const table = blocks[0] as TableBlock;
+    expect(table.type).toBe('table');
+    expect(table.id).toBe('table_1');
+    expect(table.rows).toHaveLength(2);
+    expect(table.rows[0].cells).toHaveLength(2);
+    expect(table.rows[0].cells[0].blocks[0].runs[0].text).toBe('Cell 1 Header');
+    expect(table.rows[0].cells[1].blocks[0].runs[0].text).toBe('Cell 2 Header');
+    expect(table.rows[1].cells[0].blocks[0].runs[0].text).toBe('Direct cell text');
   });
 
   it('extracts nested inline links within paragraphs', () => {
@@ -357,7 +368,7 @@ describe('LexicalAdapter', () => {
       },
     };
 
-    const blocks = adapter.extractParagraphBlocks(serializedWithLink);
+    const blocks = adapter.extractParagraphBlocks(serializedWithLink) as ParagraphBlock[];
     expect(blocks).toHaveLength(1);
     expect(blocks[0].runs).toHaveLength(3);
     expect(blocks[0].runs[0].text).toBe('Check out ');
@@ -379,10 +390,37 @@ describe('LexicalAdapter', () => {
       },
     };
 
-    const blocks = adapter.extractParagraphBlocks(serializedEmpty);
+    const blocks = adapter.extractParagraphBlocks(serializedEmpty) as ParagraphBlock[];
     expect(blocks).toHaveLength(1);
     expect(blocks[0].id).toBe('empty_p');
     expect(blocks[0].runs).toHaveLength(1);
     expect(blocks[0].runs[0].text).toBe(' ');
+  });
+
+  it('extracts image blocks with dimensions and attributes', () => {
+    const serializedImage = {
+      root: {
+        children: [
+          {
+            key: 'img_1',
+            type: 'image',
+            src: 'https://example.com/photo.jpg',
+            altText: 'Sample photo',
+            width: 400,
+            height: 300,
+          },
+        ],
+      },
+    };
+
+    const blocks = adapter.extractParagraphBlocks(serializedImage);
+    expect(blocks).toHaveLength(1);
+    const img = blocks[0] as ImageBlock;
+    expect(img.type).toBe('image');
+    expect(img.id).toBe('img_1');
+    expect(img.src).toBe('https://example.com/photo.jpg');
+    expect(img.altText).toBe('Sample photo');
+    expect(img.width).toBe(400);
+    expect(img.height).toBe(300);
   });
 });

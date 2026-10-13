@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LayoutSlicer } from '../src/core/LayoutSlicer';
-import { ParagraphBlock, TextStyle } from '../src/core/Types';
+import { ParagraphBlock, ParagraphTrackItem, TextStyle } from '../src/core/Types';
 
 describe('LayoutSlicer', () => {
   const defaultStyle: TextStyle = {
@@ -31,8 +31,8 @@ describe('LayoutSlicer', () => {
     expect(pages).toHaveLength(1);
     expect(pages[0].tracks).toHaveLength(2);
     expect(pages[0].pageNumber).toBe(1);
-    expect(pages[0].tracks[0].paraId).toBe('p1');
-    expect(pages[0].tracks[1].paraId).toBe('p2');
+    expect((pages[0].tracks[0] as ParagraphTrackItem).paraId).toBe('p1');
+    expect((pages[0].tracks[1] as ParagraphTrackItem).paraId).toBe('p2');
     expect(pages[0].tracks[1].y).toBeGreaterThan(pages[0].tracks[0].y);
   });
 
@@ -58,13 +58,17 @@ describe('LayoutSlicer', () => {
     expect(pages.length).toBeGreaterThanOrEqual(2);
 
     // Verify Page 1 slice
-    const trackPage1 = pages[0].tracks.find((t) => t.paraId === 'large_p_100');
+    const trackPage1 = (pages[0].tracks as ParagraphTrackItem[]).find(
+      (t) => t.paraId === 'large_p_100'
+    );
     expect(trackPage1).toBeDefined();
     expect(trackPage1?.isFirstSlice).toBe(true);
     expect(trackPage1?.isLastSlice).toBe(false);
 
     // Verify Page 2 slice
-    const trackPage2 = pages[1].tracks.find((t) => t.paraId === 'large_p_100');
+    const trackPage2 = (pages[1].tracks as ParagraphTrackItem[]).find(
+      (t) => t.paraId === 'large_p_100'
+    );
     expect(trackPage2).toBeDefined();
     expect(trackPage2?.isFirstSlice).toBe(false);
 
@@ -99,7 +103,7 @@ describe('LayoutSlicer', () => {
 
     // Check all slices across all pages to ensure no slice has exactly 1 line if the block has >= 2 lines
     for (const page of pages) {
-      for (const track of page.tracks) {
+      for (const track of page.tracks as ParagraphTrackItem[]) {
         if (!track.isFirstSlice || !track.isLastSlice) {
           expect(track.lines.length).toBeGreaterThanOrEqual(2);
         }

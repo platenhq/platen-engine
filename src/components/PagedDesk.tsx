@@ -1,6 +1,6 @@
 import React from 'react';
 import { PageSlice } from '../core/Types';
-import { PagedSheet } from './PagedSheet';
+import { PageInfo, PagedSheet } from './PagedSheet';
 
 export interface PagedDeskProps {
   pages?: PageSlice[];
@@ -10,8 +10,8 @@ export interface PagedDeskProps {
   className?: string;
   style?: React.CSSProperties;
   children?: React.ReactNode;
-  renderHeader?: (page: PageSlice) => React.ReactNode;
-  renderFooter?: (page: PageSlice) => React.ReactNode;
+  renderHeader?: ((info: PageInfo) => React.ReactNode) | ((page: PageSlice) => React.ReactNode);
+  renderFooter?: ((info: PageInfo) => React.ReactNode) | ((page: PageSlice) => React.ReactNode);
 }
 
 /**
