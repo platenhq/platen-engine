@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.0](https://github.com/platenhq/platen-engine/compare/v0.1.3...v0.2.0) (2026-10-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **engine:** the canvas renderer, proxies, editor adapters, engine bridge and track based sheet rendering are no longer exported. Use the paged document wrapper.
+
+### Features
+
+* **engine:** add table and image blocks and block level pagination experiments ([e349a72](https://github.com/platenhq/platen-engine/commit/e349a722de0199570bb0dc3e800df757f995c99a))
+* **page-flow:** paginate native editable content with a float rail ([ddd3af3](https://github.com/platenhq/platen-engine/commit/ddd3af372e189cc099ec7afc9f4f2eba2873f19b))
+* **page-flow:** paginate native editable content with a float rail ([d80f3f0](https://github.com/platenhq/platen-engine/commit/d80f3f073bb0fefea6831c832a195cff85c86ea9))
+
+
+### Bug Fixes
+
+* **deps:** patch high severity source map advisory in build tooling ([1d4e464](https://github.com/platenhq/platen-engine/commit/1d4e46449acd43d2a5f7609781d97bb22fbad58d))
+* **release:** upgrade to node 24 and configure npm registry for oidc publish ([48d4708](https://github.com/platenhq/platen-engine/commit/48d4708746f3e69e57a9858d3d8c1ef5b696884f))
+
+
+### Code Refactoring
+
+* **engine:** remove the canvas pipeline and block margin pagination ([f567e7d](https://github.com/platenhq/platen-engine/commit/f567e7de7c7a47ceeeb8a4d610fa4ba9d1e0c616))
+
 ## [0.1.3](https://github.com/platenhq/platen-engine/compare/v0.1.2...v0.1.3) (2026-09-13)
 
 
