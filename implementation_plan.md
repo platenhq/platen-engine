@@ -1,6 +1,6 @@
 # Implementation Plan: Float-Rail Pagination for `@platen/engine`
 
-Status: awaiting approval. Nothing has been changed yet.
+Status: steps 0-2 done on branch `feat/float-rail-pagination` (additive; nothing deleted yet). Step 3 (cleanup) awaits a decision.
 
 ## 1. Goal
 

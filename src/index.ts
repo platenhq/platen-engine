@@ -17,6 +17,12 @@ export * from './core/PaginationMetrics';
 export * from './layout/BlockPagination';
 export * from './hooks/useBlockPagination';
 
+// Float-Rail Page Flow (native contenteditable pagination)
+export * from './core/PageFlow';
+export * from './hooks/usePageFlow';
+export * from './components/PageBreakRail';
+export * from './components/PagedDocument';
+
 // Caret & Selection Coordinate Solver
 export * from './core/CaretPositioner';
 
