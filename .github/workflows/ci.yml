@@ -96,5 +96,11 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Install Chromium for layout tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser layout tests
+        run: npm run test:browser
+
       - name: Verify bundle build
         run: npm run build
