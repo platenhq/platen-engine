@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+  # Manual retry: publishes an existing release tag when the automatic publish failed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish to npm (e.g. v0.2.1)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -17,13 +24,16 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
+        if: ${{ github.event_name == 'push' }}
         with:
           release-type: node
 
       # When a release PR is merged and a new release is created:
       - name: Checkout repository
         uses: actions/checkout@v4
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
+        with:
+          ref: ${{ inputs.tag }}
 
       # Automatically appends Installation & Helpful Links to the release notes:
       - name: Append Release Notes Template
@@ -57,19 +67,19 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
         with:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
 
       - name: Build package distribution
         run: npm run build
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
 
       - name: Publish to npm (OIDC Provenance)
         run: npm publish --provenance --access public
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
