@@ -70,6 +70,8 @@ export function getPageBoundary(pageNumber: number, geometry: PageGeometry): num
 export interface SpacerSegment {
   top: number;
   height: number;
+  /** The part of `height` that is desk gutter, which exists on screen but not on paper. */
+  gutter: number;
 }
 
 /**
@@ -94,10 +96,19 @@ export function getSpacerSegments(
 
     for (const span of spans) {
       if (span.bottom <= cursor + 1 || span.top >= zoneBottom - 1) continue;
-      if (span.top > cursor + 1) segments.push({ top: cursor, height: span.top - cursor });
+      if (span.top > cursor + 1) {
+        segments.push({ top: cursor, height: span.top - cursor, gutter: 0 });
+      }
       cursor = Math.max(cursor, span.bottom);
     }
-    if (zoneBottom > cursor + 1) segments.push({ top: cursor, height: zoneBottom - cursor });
+    if (zoneBottom > cursor + 1) {
+      const isWholeDeadZone = cursor === zoneTop && page < count;
+      segments.push({
+        top: cursor,
+        height: zoneBottom - cursor,
+        gutter: isWholeDeadZone ? geometry.deskGutter : 0,
+      });
+    }
   }
   return segments;
 }

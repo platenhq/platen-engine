@@ -22,7 +22,7 @@ export const PageBreakRail: React.FC<PageBreakRailProps> = ({ segments }) => {
       suppressContentEditableWarning
       style={{ height: 0, userSelect: 'none', pointerEvents: 'none' }}
     >
-      {segments.map(({ top, height }) => {
+      {segments.map(({ top, height, gutter }) => {
         const offset = top - previousBottom;
         previousBottom = top + height;
 
@@ -42,7 +42,10 @@ export const PageBreakRail: React.FC<PageBreakRailProps> = ({ segments }) => {
                 // Wider than the column so no line finds room beside it.
                 width: 'calc(100% + 2px)',
                 marginLeft: '-1px',
-                height: `${height}px`,
+                // The gutter part collapses when printing, where sheets touch.
+                height: gutter
+                  ? `calc(${height - gutter}px + var(--platen-gutter, ${gutter}px))`
+                  : `${height}px`,
               }}
             />
           </React.Fragment>

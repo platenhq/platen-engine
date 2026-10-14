@@ -56,11 +56,11 @@ describe('PageFlow', () => {
   });
 
   it('places one spacer per dead zone and one over the last bottom margin', () => {
-    expect(getSpacerSegments(1, letter)).toEqual([{ top: 864, height: 96 }]);
+    expect(getSpacerSegments(1, letter)).toEqual([{ top: 864, height: 96, gutter: 0 }]);
     expect(getSpacerSegments(3, letter)).toEqual([
-      { top: 864, height: 212 },
-      { top: 1940, height: 212 },
-      { top: 3016, height: 96 },
+      { top: 864, height: 212, gutter: 20 },
+      { top: 1940, height: 212, gutter: 20 },
+      { top: 3016, height: 96, gutter: 0 },
     ]);
   });
 
@@ -68,17 +68,17 @@ describe('PageFlow', () => {
     // A 2000px block at the top of page 2 covers one dead zone and ends inside the next.
     const spans = [{ top: 1076, bottom: 3076 }];
     expect(getSpacerSegments(4, letter, spans)).toEqual([
-      { top: 864, height: 212 },
-      { top: 3076, height: 152 },
-      { top: 4092, height: 96 },
+      { top: 864, height: 212, gutter: 20 },
+      { top: 3076, height: 152, gutter: 0 },
+      { top: 4092, height: 96, gutter: 0 },
     ]);
   });
 
   it('keeps the dead zone a block starts directly below', () => {
     const spans = [{ top: 1076, bottom: 1500 }];
     expect(getSpacerSegments(2, letter, spans)).toEqual([
-      { top: 864, height: 212 },
-      { top: 1940, height: 96 },
+      { top: 864, height: 212, gutter: 20 },
+      { top: 1940, height: 96, gutter: 0 },
     ]);
   });
 

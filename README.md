@@ -87,6 +87,7 @@ export function WordProcessor() {
 | `renderHeader`, `renderFooter` |                            | Rendered in each sheet's top and bottom margin        |
 | `sheetClassName`, `sheetStyle` |                            | Styling for each sheet                                |
 | `onPageCountChange`            |                            | Called when the number of sheets changes              |
+| `printIsolated`                | `true`                     | Print the document alone, hiding the rest of the page |
 
 ### Layout requirements
 
@@ -98,12 +99,41 @@ export function WordProcessor() {
 
 ### Styling blocks
 
-- A block that forms its own formatting context (a table, or anything with
-  `display: flow-root`) is moved to the next sheet whole. Give code blocks, callouts and
-  other blocks with a background or border `display: flow-root`, otherwise their box paints
-  across the gap while their lines flow around it.
+- A block that forms its own formatting context is moved to the next sheet whole. To make
+  a block unbreakable (code blocks, callouts, image wrappers and anything else with a
+  background or border), give it all three of:
+
+  ```css
+  display: flow-root;
+  width: 100%;
+  box-sizing: border-box;
+  ```
+
+  The explicit width is required. A `flow-root` block with automatic width that does not
+  fit above a page boundary is squeezed to zero width instead of being moved, and its
+  content disappears. Without `flow-root` at all, the block's box paints across the gap
+  while its lines flow around it.
+
 - `PagedDocument` exposes `--platen-usable-width` and `--platen-usable-height`. Use them to
   cap media: `img { max-height: var(--platen-usable-height); }`.
+
+### Printing and PDF
+
+`PagedDocument` ships its own print styles, and paper reproduces the screen: each sheet
+becomes one printed page with the same line breaks, margins, headers and footers. Use the
+print dialog's "Save as PDF" for a PDF.
+
+- The paper is the size of a sheet, with no printer margin of its own. The sheet's margins
+  are already part of the layout. In the print dialog, leave margins on "Default" and
+  scale on 100%.
+- Sheets print white without shadows, whatever theme is active. Text and other content
+  print in the colours they have on screen, so a host with a dark theme should switch to
+  its light theme while printing (for example on the `beforeprint` event).
+- `printIsolated` (on by default) hides everything else on the page and removes clipping,
+  padding and scrolling from the document's ancestors, so the first sheet starts exactly
+  at the top of the first printed page. Printed pages only line up with sheets when that
+  holds, so turn it off only if the host takes care of it.
+- An unbreakable block taller than a page is cut at the page edge when printed.
 
 ### Lower-level API
 
@@ -127,8 +157,7 @@ the pure helpers `resolvePageGeometry`, `computePageCount`, `getSpacerSegments`,
 
 - An unbreakable block taller than a page (a very long table) runs across the gap between
   sheets. Row-level table splitting is not implemented yet.
-- Widow and orphan control, repeated table headers and print/PDF output are not
-  implemented yet.
+- Widow and orphan control and repeated table headers are not implemented on screen yet.
 
 ---
 
