@@ -1,6 +1,6 @@
 {
   "name": "@platen/engine",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Multi-page pagination for native contenteditable editors, with page breaks between lines",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

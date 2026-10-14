@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/platenhq/platen-engine/compare/v0.2.1...v0.3.0) (2026-10-14)
+
+
+### Features
+
+* **page-flow:** warn when an unbreakable block is squeezed to zero width ([fdd9dd0](https://github.com/platenhq/platen-engine/commit/fdd9dd006862d53e0dbae690ece81297e3aeae52))
+* **print:** print each sheet as a page that matches the screen ([8278394](https://github.com/platenhq/platen-engine/commit/827839465b7199b6cc454da039fbdf0dad2bdf14))
+* **print:** print each sheet as a page that matches the screen ([9682819](https://github.com/platenhq/platen-engine/commit/9682819f9d6e94d1d53d5d387d280e8a02f4fc09))
+* **print:** print each sheet as a page that matches the screen ([1166cfd](https://github.com/platenhq/platen-engine/commit/1166cfd7bec791bf0b086705f8215d3e2739fa80))
+
+
+### Bug Fixes
+
+* **page-flow:** stop runaway page growth from oversized nested content ([9a3aeb7](https://github.com/platenhq/platen-engine/commit/9a3aeb7867dfbb5d6c2c7504472c40191e57b9bb))
+* **page-flow:** stop runaway page growth from oversized nested content ([2bc84d2](https://github.com/platenhq/platen-engine/commit/2bc84d279e84a597004e73123ee2477ed8602a8c))
+
 ## [0.2.1](https://github.com/platenhq/platen-engine/compare/v0.2.0...v0.2.1) (2026-10-13)
 
 
