@@ -72,6 +72,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitest/browser-playwright": "^4.1.11",
+    "pdfjs-dist": "^4.10.38",
     "playwright": "^1.64.0",
     "prettier": "^3.4.2",
     "publint": "^0.3.24",

@@ -5,6 +5,9 @@ export * from './core/Geometry';
 // Page Flow Geometry & Page Counting
 export * from './core/PageFlow';
 
+// Print Stylesheet
+export * from './core/PrintStyles';
+
 // Page Flow Hook
 export * from './hooks/usePageFlow';
 
