@@ -114,6 +114,67 @@ function warnIfFlowIsIsolated(flow: HTMLElement, contentSelector: string): void 
   }
 }
 
+// Only the build flag is needed, so the library does not depend on Node type definitions.
+declare const process: { env: { NODE_ENV?: string } };
+
+/**
+ * Bundlers replace `process.env.NODE_ENV` with a literal, so this works in the browser even
+ * where no `process` object exists. Without a bundler it throws, and warnings stay off.
+ */
+function isDevelopmentBuild(): boolean {
+  try {
+    return process.env.NODE_ENV !== 'production';
+  } catch {
+    return false;
+  }
+}
+
+const BLOCK_DISPLAYS = new Set(['block', 'list-item']);
+const warnedSqueezed = new WeakSet<Element>();
+
+/**
+ * Warns about unbreakable blocks squeezed to zero width beside a page spacer. A block that
+ * forms its own formatting context and has automatic width may be shrunk into the empty
+ * sliver next to a spacer instead of being moved to the next page, and its content then
+ * disappears. Each element is reported once.
+ */
+function warnAboutSqueezedBlocks(flow: HTMLElement, segments: SpacerSegment[]): void {
+  if (segments.length === 0 || flow.offsetHeight === 0) return;
+  const flowRect = flow.getBoundingClientRect();
+  const scale = flowRect.height / flow.offsetHeight || 1;
+  const walker = document.createTreeWalker(flow, NodeFilter.SHOW_ELEMENT);
+
+  while (walker.nextNode()) {
+    const el = walker.currentNode;
+    if (!(el instanceof HTMLElement) || warnedSqueezed.has(el)) continue;
+    if (el.offsetWidth > 0 || el.offsetHeight === 0) continue;
+    const parent = el.parentElement;
+    if (!parent || parent.offsetWidth === 0) continue;
+
+    const style = getComputedStyle(el);
+    const formsContext =
+      !BLOCK_DISPLAYS.has(style.display) ||
+      style.overflowX !== 'visible' ||
+      style.overflowY !== 'visible';
+    if (!formsContext || style.display === 'inline' || style.display === 'contents') continue;
+
+    const rect = el.getBoundingClientRect();
+    const top = (rect.top - flowRect.top) / scale;
+    const bottom = top + el.offsetHeight;
+    if (!segments.some((segment) => top < segment.top + segment.height && bottom > segment.top)) {
+      continue;
+    }
+
+    warnedSqueezed.add(el);
+    console.warn(
+      '[@platen/engine] An unbreakable block was squeezed to zero width beside a page ' +
+        'break, so its content is hidden. Give it width: 100% and box-sizing: border-box ' +
+        'so it moves to the next page instead:',
+      el
+    );
+  }
+}
+
 /**
  * Observes flowed content and derives the page count and the spacers for
  * `PageBreakRail`. Never writes to the observed DOM.
@@ -156,9 +217,9 @@ export function usePageFlow(options: UsePageFlowOptions): PageFlowState {
       return;
     }
 
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
-      warnIfFlowIsIsolated(flow, contentSelector);
-    }
+    const isDevelopment = isDevelopmentBuild();
+    if (isDevelopment) warnIfFlowIsIsolated(flow, contentSelector);
+    let squeezeCheck: ReturnType<typeof setTimeout> | undefined;
 
     const update = () => {
       const pageCount = Math.min(
@@ -176,18 +237,29 @@ export function usePageFlow(options: UsePageFlowOptions): PageFlowState {
         prev.segments.length === segments.length &&
         prev.segments.every(
           (segment, index) =>
-            segment.top === segments[index].top && segment.height === segments[index].height
+            segment.top === segments[index].top &&
+            segment.height === segments[index].height &&
+            segment.gutter === segments[index].gutter
         )
           ? prev
           : { pageCount, segments }
       );
+
+      if (isDevelopment) {
+        // Checked once layout has settled, after the spacers for this update are in place.
+        clearTimeout(squeezeCheck);
+        squeezeCheck = setTimeout(() => warnAboutSqueezedBlocks(flow, segments), 300);
+      }
     };
 
     update();
     const observer = new ResizeObserver(update);
     observer.observe(flow);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(squeezeCheck);
+    };
   }, [flowRef, enabled, geometry, contentSelector, maxPages]);
 
   return { pageCount: layout.pageCount, segments: layout.segments, geometry };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PagedDocument, PagedDocumentProps } from '../../src/components/PagedDocument';
 import { pageForOffset, resolvePageGeometry } from '../../src/core/PageFlow';
 
@@ -157,6 +157,62 @@ describe('PagedDocument', () => {
     const tableTop = document.querySelector('table')!.getBoundingClientRect().top - flowTop;
     expect(tableTop).toBeGreaterThanOrEqual(letter.period);
     expect(tableTop).toBeLessThan(letter.period + 2);
+  });
+
+  it('moves a full-width unbreakable wrapper to the next sheet without squeezing it', async () => {
+    render(
+      <>
+        <div style={{ height: 700 }} />
+        <p style={{ margin: 0 }}>
+          <span
+            className="unbreakable"
+            style={{ display: 'flow-root', width: '100%', boxSizing: 'border-box' }}
+          >
+            <span style={{ display: 'flex', width: '100%' }}>
+              <span style={{ display: 'block', width: '100%', height: 279 }} />
+            </span>
+          </span>
+        </p>
+      </>
+    );
+    expect(await settle()).toBe(2);
+
+    const flowTop = document.querySelector('.PagedDocumentContent')!.getBoundingClientRect().top;
+    const wrapper = document.querySelector('.unbreakable')!.getBoundingClientRect();
+    expect(wrapper.width).toBe(letter.usableWidth);
+    expect(wrapper.top - flowTop).toBeGreaterThanOrEqual(letter.period);
+    expect(wrapper.top - flowTop).toBeLessThan(letter.period + 2);
+  });
+
+  it('warns in development when an unbreakable block is squeezed to zero width', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const squeezed = (width?: string) => (
+        <>
+          <div style={{ height: 700 }} />
+          <p style={{ margin: 0 }}>
+            <span className="squeezable" style={{ display: 'flow-root', width }}>
+              <span style={{ display: 'block', height: 279 }} />
+            </span>
+          </p>
+        </>
+      );
+      const squeezeWarnings = () =>
+        warn.mock.calls.filter(([message]) => String(message).includes('squeezed to zero width'));
+
+      render(squeezed('100%'));
+      await settle();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(squeezeWarnings()).toHaveLength(0);
+
+      render(squeezed());
+      await settle();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(squeezeWarnings()).toHaveLength(1);
+      expect(squeezeWarnings()[0][1]).toBe(document.querySelector('.squeezable'));
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('converges when a table is taller than a page', async () => {
