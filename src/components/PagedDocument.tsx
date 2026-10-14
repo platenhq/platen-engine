@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { getDocumentHeight, getSheetOffsets, PageFlowOptions } from '../core/PageFlow';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { getDocumentHeight, PageFlowOptions } from '../core/PageFlow';
+import { buildPrintStyles } from '../core/PrintStyles';
 import { usePageFlow } from '../hooks/usePageFlow';
 import { PageBreakRail } from './PageBreakRail';
 import { PageInfo, PagedSheet } from './PagedSheet';
@@ -17,6 +18,12 @@ export interface PagedDocumentProps extends PageFlowOptions {
   renderHeader?: (info: PageInfo) => React.ReactNode;
   renderFooter?: (info: PageInfo) => React.ReactNode;
   onPageCountChange?: (pageCount: number) => void;
+  /**
+   * Prints the document alone, hiding the rest of the host page and unclipping the
+   * document's ancestors. Printed pages only line up with the sheets when the document
+   * starts at the top of the first page, so turn this off only if the host handles that.
+   */
+  printIsolated?: boolean;
 }
 
 const EMPTY_LINE_RULE =
@@ -42,6 +49,7 @@ export const PagedDocument: React.FC<PagedDocumentProps> = ({
   renderHeader,
   renderFooter,
   onPageCountChange,
+  printIsolated = true,
 }) => {
   const flowRef = useRef<HTMLDivElement | null>(null);
   const { pageCount, segments, geometry } = usePageFlow({
@@ -60,6 +68,11 @@ export const PagedDocument: React.FC<PagedDocumentProps> = ({
   }, [pageCount]);
 
   const { width, height, margins: pageMargins, usableWidth, usableHeight } = geometry;
+  const gutter = geometry.deskGutter;
+  const printStyles = useMemo(
+    () => buildPrintStyles(geometry, { isolate: printIsolated }),
+    [geometry, printIsolated]
+  );
   const documentHeight = getDocumentHeight(pageCount, geometry);
   const scale = zoom > 0 ? zoom : 1;
 
@@ -85,10 +98,11 @@ export const PagedDocument: React.FC<PagedDocumentProps> = ({
             transformOrigin: 'top left',
             '--platen-usable-width': `${usableWidth}px`,
             '--platen-usable-height': `${usableHeight}px`,
+            '--platen-gutter': `${gutter}px`,
           } as React.CSSProperties
         }
       >
-        {getSheetOffsets(pageCount, geometry).map((top, index) => (
+        {Array.from({ length: pageCount }, (_, index) => (
           <PagedSheet
             key={index}
             pageNumber={index + 1}
@@ -97,7 +111,13 @@ export const PagedDocument: React.FC<PagedDocumentProps> = ({
             height={height}
             margins={pageMargins}
             className={sheetClassName}
-            style={{ position: 'absolute', top: `${top}px`, left: 0, ...sheetStyle }}
+            style={{
+              position: 'absolute',
+              // Sheets are a gutter apart on screen and touch on paper.
+              top: `calc(${index} * (${height}px + var(--platen-gutter)))`,
+              left: 0,
+              ...sheetStyle,
+            }}
             renderHeader={renderHeader}
             renderFooter={renderFooter}
           />
@@ -116,6 +136,7 @@ export const PagedDocument: React.FC<PagedDocumentProps> = ({
           {/* A line holding nothing but a break has no width, so it would fit beside a
               spacer. A 1px inline box gives it one. */}
           <style>{EMPTY_LINE_RULE}</style>
+          <style>{printStyles}</style>
           <PageBreakRail segments={segments} />
           <div ref={flowRef} className="PagedDocumentContent">
             {children}
